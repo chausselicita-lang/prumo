@@ -9,7 +9,7 @@
   const NAV = [
     ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes WhatsApp', 'chat'], ['marketing', 'Marketing', 'megaphone'], ['automacoes', 'Automações', 'bolt'],
     ['financeiro', 'Financeiro', 'wallet'], ['produtos', 'Produtos', 'box'], ['precificacao', 'Precificação', 'calc'],
-    ['tarefas', 'Tarefas', 'check'], ['equipe', 'Equipe e permissões', 'users'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['configuracoes', 'Configurações', 'gear']
+    ['tarefas', 'Tarefas', 'check'], ['equipe', 'Equipe e permissões', 'users'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['relatorios', 'Relatórios', 'chart'], ['configuracoes', 'Configurações', 'gear']
   ];
   const tabs = { clientes: 'clientes', financeiro: 'resumo' };
   let view = 'dashboard';
@@ -686,6 +686,34 @@
   };
   A['camp-status'] = async d => { const c = S.campaigns.find(x => x.id === d.id); await PE.db.update('campaigns', c.id, { status: c.status === 'encerrada' ? 'ativa' : 'encerrada' }); UI.closeModal(); refresh(); UI.toast(c.status === 'encerrada' ? 'Campanha reativada.' : 'Campanha encerrada.'); };
   A['camp-del'] = d => { UI.closeModal(); UI.confirm('Excluir esta campanha e o histórico de envios dela?', async () => { for (const n of S.notifications.filter(n => n.alert_key.startsWith(`cp:${d.id}:`))) await PE.db.remove('notifications', n.id); await PE.db.remove('campaigns', d.id); refresh(); UI.toast('Campanha excluída.'); }); };
+
+  /* ---------- RELATÓRIOS ---------- */
+  tabs.relatorios = null;
+  const repAllowed = () => PE.perm.reportSections[PE.perm.current()] || [];
+  const repTable = t => `<div class="card"><div class="card-title"><h2>${esc(t.title)}</h2></div>${t.rows.length
+    ? `<div class="table-wrap"><table><thead><tr>${t.head.map((h, i) => `<th class="${t.num && i ? 'right' : ''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${t.rows.map(r => `<tr>${r.map((c, i) => `<td class="${t.num && i ? 'right num' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+    : '<p class="muted small">Sem dados para este relatório no período.</p>'}</div>`;
+
+  VIEWS.relatorios = () => {
+    const allowed = repAllowed();
+    if (!allowed.includes(tabs.relatorios)) tabs.relatorios = allowed[0];
+    const tab = tabs.relatorios, p = per(), r = PE.reports.build(S, tab, p), label = PE.reports.sections[tab];
+    return `<div class="page-head"><div><h1>Relatórios</h1><p class="muted">Números para decidir, prontos para baixar ou imprimir.</p></div>
+        <div class="row wrap"><button class="btn ghost" data-act="rep-csv">Exportar para Excel (CSV)</button><button class="btn ghost" data-act="rep-print">Imprimir / PDF</button></div></div>
+      <div class="filters">${allowed.map(k => `<button class="pill ${tab === k ? 'active' : ''}" data-act="tab" data-v="relatorios" data-t="${k}">${PE.reports.sections[k]}</button>`).join('')}</div>
+      ${tab === 'estoque' ? '<p class="small muted">O relatório de estoque mostra a situação de hoje; o período não se aplica.</p>' : periodBar()}
+      <div class="print-only"><h2>${esc(S.company.name)} — Relatórios ${esc(label)}</h2><p>${tab === 'estoque' ? 'Posição em ' + U.fmtDate(U.today()) : `Período: ${U.fmtDate(p.start)} a ${U.fmtDate(p.end)}`}</p></div>
+      <div class="grid kpis" style="--n:${r.kpis.length}">${r.kpis.map((k, i) => kpi(k.label, k.value, k.sub, k.cls || (i === 0 ? 'orange' : ''))).join('')}</div>
+      ${r.bars.length ? `<div class="grid cols-2">${r.bars.map(b => `<div class="card"><div class="card-title"><h2>${esc(b.title)}</h2></div>${UI.bars(b.series)}</div>`).join('')}</div>` : ''}
+      ${r.tables.map(repTable).join('')}`;
+  };
+  A['rep-csv'] = () => {
+    const tab = tabs.relatorios, p = per(), r = PE.reports.build(S, tab, p);
+    const blob = new Blob([PE.reports.toCsv(r, `${S.company.name} — ${PE.reports.sections[tab]}`, p)], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `prumo-relatorio-${tab}-${U.today()}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000); UI.toast('Relatório baixado. Abra no Excel.');
+  };
+  A['rep-print'] = () => window.print();
 
   /* ---------- AUTOMAÇÕES ---------- */
   const AU = PE.auto;

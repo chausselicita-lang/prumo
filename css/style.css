@@ -254,3 +254,16 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--silver-100); }
 
 /* Automações: QUANDO / ENTÃO / E */
 .flow-tag { display: inline-block; min-width: 58px; font-weight: 800; font-size: 11px; letter-spacing: .08em; color: var(--orange-600); }
+
+/* Impressão / PDF dos relatórios */
+.print-only { display: none; }
+@media print {
+  .sidebar, .topbar, .bottom-nav, .filters, .page-head .row, #toasts, .overlay { display: none !important; }
+  .app { display: block; }
+  body { background: #fff; }
+  .content { padding: 0; max-width: none; }
+  .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  .print-only { display: block; }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.kpis { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); }
+}

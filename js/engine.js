@@ -530,3 +530,11 @@ PE.perm = {
   can(action) { return (this.actions[action] || []).includes(this.current()); },
   canModule(id) { return this.modules[this.current()].includes(id); }
 };
+
+/* Relatórios: quem acessa e quais áreas cada perfil enxerga */
+['administrador', 'gerente', 'financeiro', 'vendedor', 'operacional'].forEach(r => PE.perm.modules[r].push('relatorios'));
+PE.perm.moduleLabels.relatorios = 'Relatórios';
+PE.perm.reportSections = {
+  administrador: ['financeiros', 'comerciais', 'estoque', 'marketing'], gerente: ['financeiros', 'comerciais', 'estoque', 'marketing'],
+  financeiro: ['financeiros', 'comerciais', 'estoque'], vendedor: ['comerciais'], operacional: ['estoque']
+};
