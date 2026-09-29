@@ -212,7 +212,7 @@
     ].slice(0, 5);
     return `<div class="page-head"><div><p class="muted">${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>${greet}, ${esc(firstName())}</h1></div>${periodBar()}</div>
     ${empty ? `<div class="card">${UI.empty('🚀', 'Vamos começar?', 'Registre sua primeira venda, cadastre produtos e clientes — ou explore o Prumo com dados de exemplo para ver tudo funcionando.', `<div class="row wrap" style="justify-content:center"><button class="btn primary" data-act="sale-new">Registrar venda</button><button class="btn ghost" data-act="load-sample">Carregar dados de exemplo</button></div>`)}</div>` : ''}
-    ${kpiRow(m, c)}
+    <p class="small muted">Período: ${U.fmtDate(p.start)}${p.start !== p.end ? ' a ' + U.fmtDate(p.end) : ''} · comparado com ${U.fmtDate(p.prevStart)}${p.prevStart !== p.prevEnd ? ' a ' + U.fmtDate(p.prevEnd) : ''}</p>${kpiRow(m, c)}
     <div class="grid split">
       <div class="card"><div class="card-title"><h2>O que precisa da sua atenção?</h2><a class="small" href="#/atencao">Ver tudo (${alerts.length})</a></div>
         ${alerts.length ? `<div class="list">${alerts.slice(0, 4).map(a => alertHTML(a, false)).join('')}</div>` : UI.empty('🟢', 'Tudo em ordem', 'Nada urgente por enquanto. Continue registrando vendas e contas para o Prumo vigiar por você.')}</div>

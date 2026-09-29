@@ -363,3 +363,8 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--silver-100); }
   .bottom-nav a { font-size: 13px; }
   .lbl, .bars .lbl { font-size: 13px; }
 }
+
+/* Celular: filtros quebram em linhas (todos os botões visíveis, sem precisar arrastar) */
+@media (max-width: 900px) {
+  .filters { flex-wrap: wrap; overflow: visible; }
+}
