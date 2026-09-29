@@ -343,3 +343,23 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--silver-100); }
   .bottom-nav a svg { width: 24px; height: 24px; }
   .modal-head h2 { font-size: 22px; }
 }
+
+/* ---- Celular (ajuste 2): cartões de indicador em 2 colunas e letras pequenas maiores ---- */
+@media (max-width: 900px) {
+  .content { padding-left: 12px; padding-right: 12px; }
+  .grid.kpis > :first-child { grid-column: auto; }
+  .grid.kpis > :nth-child(odd):last-child { grid-column: 1 / -1; }
+  .card.kpi { padding: 9px 12px; }
+  .kpi .label { font-size: 14px; }
+  .kpi .value { font-size: 23px; }
+  .kpi .delta { font-size: 15px; }
+  .small, .item .sub { font-size: 16px; }
+  .hint { font-size: 15px; }
+  .chip { font-size: 15px; }
+  .field label { font-size: 14px; }
+  .pill { font-size: 16px; }
+  th { font-size: 14px; }
+  .alert .a-detail { font-size: 16px; }
+  .bottom-nav a { font-size: 13px; }
+  .lbl, .bars .lbl { font-size: 13px; }
+}
