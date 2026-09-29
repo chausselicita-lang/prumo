@@ -20,6 +20,7 @@ PE.ui = {
     chat: '<path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z"/><path d="M9 11h6M9 14h4"/>',
     bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
     chart: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     megaphone: '<path d="M3 11v3a1 1 0 001 1h2l7 4V6L6 10H4a1 1 0 00-1 1z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     dots: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',

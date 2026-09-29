@@ -134,17 +134,20 @@
       <aside class="sidebar"><div class="brand"><span class="logo">P</span><span>Prumo<small>${esc(S.company.name)}</small></span></div>
         ${NAV.filter(n => PE.perm.canModule(n[0])).map(([id, label, ic]) => `${id === 'produtos' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : id === 'lembretes' ? '<span class="badge hidden" id="badge-lem" style="background:var(--orange)"></span>' : ''}</a>`).join('')}
         <div style="flex:1"></div><a class="nav-link" href="#" data-act="logout">${UI.ico('logout')}<span>Sair</span></a></aside>
-      <div class="main"><header class="topbar"><div class="mobile-brand"><span class="logo" style="width:30px;height:30px;border-radius:10px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:16px">P</span>Prumo</div><div class="muted small grow" id="crumb"></div>
-        <div class="row">${PE.db.mode === 'demo' ? `<select class="input" style="width:auto;padding:7px 10px;font-size:13px" data-act-change="demo-role" aria-label="Ver como">${Object.entries(PE.perm.roles).map(([k, r]) => `<option value="${k}" ${k === PE.perm.current() ? 'selected' : ''}>Ver como: ${r.label}</option>`).join('')}</select>` : ''}<button class="btn primary sm" data-act="sale-new">${UI.ico('plus', 16)} Registrar venda</button></div></header>
+      <div class="main"><header class="topbar"><button class="icon-btn menu-btn" data-act="drawer" aria-label="Abrir menu">${UI.ico('menu')}</button><div class="mobile-brand"><span class="logo" style="width:30px;height:30px;border-radius:10px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:16px">P</span>Prumo</div><div class="muted small grow" id="crumb"></div>
+        <div class="row">${PE.db.mode === 'demo' ? `<select class="input" style="width:auto;padding:7px 10px;font-size:13px" data-act-change="demo-role" aria-label="Ver como">${Object.entries(PE.perm.roles).map(([k, r]) => `<option value="${k}" ${k === PE.perm.current() ? 'selected' : ''}>Ver como: ${r.label}</option>`).join('')}</select>` : ''}<button class="btn primary sm" data-act="sale-new">${UI.ico('plus', 16)} Registrar venda</button></div><button class="avatar orange topbar-avatar" data-act="user-menu" aria-label="Minha conta">${esc(U.initials(firstName()))}</button></header>
         <main class="content" id="content"></main></div>
-      <nav class="bottom-nav">${[['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['financeiro', 'Caixa', 'wallet'], ['atencao', 'Atenção', 'bell']].filter(x => PE.perm.canModule(x[0])).map(([id, l, ic]) => `<a href="#/${id}" data-nav="${id}">${UI.ico(ic, 22)}<span>${l}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-mob"></span>' : ''}</a>`).join('')}<a href="#" data-act="more">${UI.ico('dots', 22)}<span>Mais</span></a></nav></div>`;
+      <button class="fab" data-act="sale-new" aria-label="Registrar venda">${UI.ico('plus', 26)}</button><div class="drawer-bg" data-act="drawer"></div><nav class="bottom-nav">${[['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['financeiro', 'Caixa', 'wallet'], ['atencao', 'Atenção', 'bell']].filter(x => PE.perm.canModule(x[0])).map(([id, l, ic]) => `<a href="#/${id}" data-nav="${id}">${UI.ico(ic, 22)}<span>${l}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-mob"></span>' : ''}</a>`).join('')}<a href="#" data-act="more">${UI.ico('dots', 22)}<span>Mais</span></a></nav></div>`;
     route();
   }
-  A['logout'] = async () => { await PE.db.signOut(); renderAuth(); };
+  A['logout'] = async () => { UI.closeModal(); await PE.db.signOut(); renderAuth(); };
+  A['drawer'] = () => document.querySelector('.app')?.classList.toggle('drawer-open');
+  A['user-menu'] = () => UI.modal({ title: firstName(), body: `<p class="muted small">${esc(PE.db.user?.email || '')} · ${esc(PE.perm.roles[PE.perm.current()].label)}</p><div class="list">${PE.perm.canModule('configuracoes') ? `<a class="item clickable" href="#/configuracoes" data-act="close-modal" style="text-decoration:none">${UI.ico('gear')}<span class="title">Configurações</span></a>` : ''}<a class="item clickable" href="#" data-act="logout" style="text-decoration:none">${UI.ico('logout')}<span class="title">Sair</span></a></div>` });
   A['more'] = () => UI.modal({ title: 'Mais opções', body: `<div class="list">${NAV.filter(n => !['dashboard', 'clientes', 'vendas', 'financeiro', 'atencao'].includes(n[0]) && PE.perm.canModule(n[0])).map(([id, l, ic]) => `<a class="item clickable" href="#/${id}" data-act="close-modal" style="text-decoration:none">${UI.ico(ic)}<span class="title">${l}</span></a>`).join('')}<a class="item clickable" href="#" data-act="logout" style="text-decoration:none">${UI.ico('logout')}<span class="title">Sair</span></a></div>` });
 
   function route() {
     if (!S.company) return;
+    document.querySelector('.app')?.classList.remove('drawer-open');
     let h = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('?')[0];
     if (!VIEWS[h]) h = 'dashboard';
     if (!PE.perm.canModule(h)) { UI.toast('Seu perfil não tem acesso a esta área.', 'err'); if (location.hash !== '#/dashboard') { location.hash = '#/dashboard'; return; } h = 'dashboard'; }
@@ -210,7 +213,7 @@
     return `<div class="page-head"><div><p class="muted">${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>${greet}, ${esc(firstName())}</h1></div>${periodBar()}</div>
     ${empty ? `<div class="card">${UI.empty('🚀', 'Vamos começar?', 'Registre sua primeira venda, cadastre produtos e clientes — ou explore o Prumo com dados de exemplo para ver tudo funcionando.', `<div class="row wrap" style="justify-content:center"><button class="btn primary" data-act="sale-new">Registrar venda</button><button class="btn ghost" data-act="load-sample">Carregar dados de exemplo</button></div>`)}</div>` : ''}
     ${kpiRow(m, c)}
-    <div class="grid cols-2" style="grid-template-columns:1.4fr 1fr">
+    <div class="grid split">
       <div class="card"><div class="card-title"><h2>O que precisa da sua atenção?</h2><a class="small" href="#/atencao">Ver tudo (${alerts.length})</a></div>
         ${alerts.length ? `<div class="list">${alerts.slice(0, 4).map(a => alertHTML(a, false)).join('')}</div>` : UI.empty('🟢', 'Tudo em ordem', 'Nada urgente por enquanto. Continue registrando vendas e contas para o Prumo vigiar por você.')}</div>
       <div class="stack">
