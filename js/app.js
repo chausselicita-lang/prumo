@@ -178,7 +178,7 @@
     if (d.r !== 'custom') { UI.range = d.r; return refresh(); }
     UI.form({ title: 'Período personalizado', fields: [{ name: 'start', label: 'De', type: 'date', required: true }, { name: 'end', label: 'Até', type: 'date', required: true }], values: UI.custom || { start: U.addDays(U.today(), -30), end: U.today() }, submitLabel: 'Aplicar', onSubmit: v => { if (v.end < v.start) throw new Error('A data final deve ser depois da inicial.'); UI.range = 'custom'; UI.custom = v; UI.closeModal(); refresh(); } });
   };
-  const delta = (d, invert) => d === null ? '<span class="muted">sem comparação</span>' : `<span class="${(d >= 0) !== !!invert ? 'up' : 'down'}">${d >= 0 ? '▲' : '▼'} ${U.pct(Math.abs(d), 0)}</span> <span class="muted">vs. anterior</span>`;
+  const delta = (d, invert) => d === null ? '<span class="muted">sem comparação</span>' : `<span class="${(d >= 0) !== !!invert ? 'up' : 'down'}">${d >= 0 ? '▲' : '▼'} ${U.pct(Math.abs(d), 0)}</span> <span class="muted">vs. antes</span>`;
   const kpi = (label, value, sub, cls = '') => `<div class="card kpi ${cls}"><div class="label">${label}</div><div class="value num">${value}</div><div class="delta">${sub || ''}</div></div>`;
   const alertHTML = (a, actions = true) => `<div class="alert ${a.level}"><span class="dot"></span><div class="grow"><div class="a-title">${esc(a.title)}</div><div class="a-detail">${esc(a.detail)}</div>${actions ? `<div class="a-actions"><a class="btn sm ghost" href="#/${a.route}">${esc(a.cta || 'Ver')}</a><button class="btn sm ghost" data-act="dismiss-alert" data-key="${esc(a.key)}">Dispensar 7 dias</button></div>` : ''}</div></div>`;
   A['dismiss-alert'] = async d => { await PE.actions.mark(d.key, 7); refresh(); };

@@ -311,3 +311,35 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--silver-100); }
   .grid.cols-5 > :nth-child(odd):last-child { grid-column: 1 / -1; }
   .grid.kpis > :first-child { grid-column: 1 / -1; }
 }
+
+/* ---- Celular: cartões mais compactos e letras maiores (leitura sem apertar os olhos) ---- */
+@media (max-width: 900px) {
+  body { font-size: 17px; }
+  .small { font-size: 15px; }
+  .hint { font-size: 14px; }
+  .item .sub { font-size: 15px; }
+  .field label { font-size: 13px; }
+  .input, select.input, textarea.input { font-size: 17px; padding: 13px 14px; }
+  .btn { font-size: 16px; }
+  .btn.sm { font-size: 15px; padding: 9px 13px; }
+  .chip { font-size: 14px; padding: 4px 11px; }
+  .pill { font-size: 15px; padding: 9px 15px; }
+  th { font-size: 13px; }
+  h2 { font-size: 21px; }
+  h3 { font-size: 18px; }
+  .page-head h1 { font-size: 26px; }
+  .content { gap: 14px; }
+  .grid { gap: 10px; }
+  .card { padding: 15px; }
+  .card.kpi { padding: 11px 14px; }
+  .kpi .label { font-size: 13px; }
+  .kpi .value { font-size: 26px; margin-top: 2px; }
+  .kpi .delta { font-size: 14px; margin-top: 2px; }
+  .item { padding: 12px; }
+  .item .title { font-size: 17px; }
+  .alert .a-title { font-size: 17px; }
+  .alert .a-detail { font-size: 15px; }
+  .bottom-nav a { font-size: 12px; }
+  .bottom-nav a svg { width: 24px; height: 24px; }
+  .modal-head h2 { font-size: 22px; }
+}
