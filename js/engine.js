@@ -170,9 +170,73 @@ PE.engine = {
     const lateTasks = S.tasks.filter(t => t.status !== 'concluida' && t.due_date && t.due_date < T);
     if (lateTasks.length) push('attention', 'late-tasks', `${lateTasks.length} ${lateTasks.length > 1 ? 'tarefas atrasadas' : 'tarefa atrasada'}`, lateTasks.slice(0, 3).map(t => t.title).join(' · '), 'tarefas', 'Ver tarefas');
 
+    const rem = this.reminders(S);
+    if (rem.length) push('opportunity', 'wa-reminders', `${rem.length} ${rem.length > 1 ? 'clientes para contatar' : 'cliente para contatar'} hoje no WhatsApp`, `Mensagens prontas: ${rem.slice(0, 3).map(r => r.customer.name).join(', ')}${rem.length > 3 ? '…' : ''}.`, 'lembretes', 'Ver lembretes');
+
     const order = { urgent: 0, attention: 1, opportunity: 2, info: 3 };
     return out.filter(a => !dismissed.has(a.key)).sort((a, b) => order[a.level] - order[b.level]);
   },
+  /* ---------- Lembretes de WhatsApp ---------- */
+  waTypes: {
+    cobranca: { label: 'Cobrança', cls: 'red', cooldown: 3, prio: 0 },
+    orcamento: { label: 'Proposta', cls: 'blue', cooldown: 3, prio: 1 },
+    aniversario: { label: 'Aniversário', cls: 'orange', cooldown: 300, prio: 1 },
+    inativo: { label: 'Cliente sumido', cls: 'yellow', cooldown: 30, prio: 2 },
+    posvenda: { label: 'Pós-venda', cls: 'green', cooldown: 180, prio: 3 }
+  },
+  waDefaults: {
+    cobranca: 'Oi {nome}, tudo bem? Aqui é da {empresa}. Passando para lembrar do pagamento de {valor}, que venceu em {vencimento}. Se já pagou, pode ignorar esta mensagem. Qualquer dúvida é só me chamar!',
+    orcamento: 'Oi {nome}, tudo bem? Aqui é da {empresa}. Passando para saber se você conseguiu ver a proposta de {titulo} ({valor}). Posso tirar alguma dúvida ou ajustar alguma coisa?',
+    aniversario: 'Parabéns, {nome}! 🎉 A equipe da {empresa} deseja um dia incrível para você. Passa aqui para conferir uma novidade especial de aniversário!',
+    inativo: 'Oi {nome}, tudo bem? Aqui é da {empresa}. Faz um tempinho que você não passa por aqui e sentimos sua falta! Chegaram novidades, posso te mostrar?',
+    posvenda: 'Oi {nome}! Aqui é da {empresa}. Como foi sua experiência com {produto}? Ficou tudo certo? Sua opinião é muito importante para a gente!'
+  },
+  waTemplate(S, type) { return S.company?.settings?.wa_templates?.[type] || this.waDefaults[type]; },
+  waRender(tpl, vars) { return String(tpl).replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined && vars[k] !== '' ? vars[k] : `{${k}}`)).replace(/[  ]/g, ' '); },
+
+  /** Fila de contatos do dia: quem procurar, por quê, e as variáveis da mensagem. */
+  reminders(S) {
+    const T = U.today(), out = [];
+    const skipped = new Set(S.notifications.filter(n => /^w[as]:/.test(n.alert_key) && n.dismissed_until && n.dismissed_until >= T).map(n => n.alert_key.replace(/^ws:/, 'wa:')));
+    const first = n => String(n || '').trim().split(/\s+/)[0];
+    const add = (type, id, c, reason, extra, value) => {
+      const key = `wa:${type}:${id}`; if (skipped.has(key)) return;
+      out.push({ key, type, customer: c, reason, value: value || 0, vars: { nome: first(c.name), empresa: S.company?.name || '', ...extra } });
+    };
+    const custOf = id => S.customers.find(x => x.id === id);
+    S.transactions.filter(t => t.kind === 'receita' && !t.paid_date && t.due_date < T && t.customer_id).forEach(t => {
+      const c = custOf(t.customer_id); if (!c) return;
+      add('cobranca', t.id, c, `${U.brl(t.amount)} vencido há ${U.daysBetween(t.due_date, T)} dia(s)`, { valor: U.brl(t.amount), vencimento: U.fmtDate(t.due_date) }, Number(t.amount));
+    });
+    S.opportunities.filter(o => ['proposta', 'negociacao'].includes(o.stage) && o.customer_id).forEach(o => {
+      const c = custOf(o.customer_id); if (!c) return;
+      const age = U.daysBetween((o.updated_at || o.created_at).slice(0, 10), T), due = o.next_action_date && o.next_action_date <= T;
+      if (age >= 3 || due) add('orcamento', o.id, c, `${o.title} (${U.brl0(o.value)})${age >= 3 ? `, sem retorno há ${age} dias` : ', ação marcada para hoje'}`, { titulo: o.title, valor: U.brl(o.value) }, Number(o.value));
+    });
+    S.customers.forEach(c => {
+      const st = this.customerStats(S, c);
+      const lastItem = st.sales[0]?.items?.[0]?.name || 'sua compra';
+      if (st.count > 0 && st.since >= 60) add('inativo', c.id, c, `Sem comprar há ${st.since} dias · já gastou ${U.brl0(st.total)}`, { dias: st.since, produto: Object.keys(st.products)[0] || lastItem }, st.total);
+      if (st.count > 0 && st.since >= 3 && st.since <= 10) add('posvenda', `${c.id}-${st.last}`, c, `Comprou há ${st.since} dias (${lastItem})`, { produto: lastItem }, st.total);
+      if (c.birthday) { const md = c.birthday.slice(5); for (let i = 0; i <= 3; i++) { const d = U.addDays(T, i); if (d.slice(5) === md) { add('aniversario', `${c.id}-${d.slice(0, 4)}`, c, i === 0 ? 'Aniversário hoje' : `Aniversário em ${i} dia(s)`, {}, st.total); break; } } }
+    });
+    return out.sort((a, b) => this.waTypes[a.type].prio - this.waTypes[b.type].prio || b.value - a.value);
+  },
+
+  /** Métrica de resultado: mensagens enviadas e clientes que voltaram a comprar depois do contato. */
+  waStats(S) {
+    const T = U.today(), from = U.addDays(T, -30);
+    const sent = S.notifications.filter(n => n.alert_key.startsWith('wa:') && n.created_at);
+    const sent30 = sent.filter(n => n.created_at.slice(0, 10) >= from).length;
+    const back = new Set(); let value = 0;
+    sent.filter(n => n.alert_key.startsWith('wa:inativo:') && n.created_at.slice(0, 10) >= U.addDays(T, -90)).forEach(n => {
+      const cid = n.alert_key.split(':')[2], d0 = n.created_at.slice(0, 10);
+      const after = S.sales.filter(s => s.customer_id === cid && s.status !== 'cancelada' && s.sold_at >= d0 && s.sold_at <= U.addDays(d0, 30));
+      if (after.length) { back.add(cid); value += after.reduce((t, s) => t + Number(s.total), 0); }
+    });
+    return { sent30, back: back.size, value };
+  },
+
   levelMeta: { urgent: { label: 'Urgente', emoji: '🔴' }, attention: { label: 'Atenção', emoji: '🟡' }, info: { label: 'Informação', emoji: '🔵' }, opportunity: { label: 'Oportunidade', emoji: '🟢' } },
 
   /* ---------- Precificação ---------- */

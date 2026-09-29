@@ -192,6 +192,12 @@ PE.actions = {
     }
   },
 
+  /** Registra um marcador em pe_notifications (envio de WhatsApp, adiar, dispensar). Recria a linha para manter created_at = data do contato. */
+  async mark(key, days) {
+    for (const n of PE.state.notifications.filter(x => x.alert_key === key)) await PE.db.remove('notifications', n.id);
+    return PE.db.insert('notifications', { alert_key: key, dismissed_until: PE.u.addDays(PE.u.today(), days) });
+  },
+
   async adjustStock(product, kind, quantity, reason) {
     const q = Number(quantity);
     const next = kind === 'entrada' ? Number(product.stock) + q : kind === 'saida' ? Number(product.stock) - q : q;
@@ -235,7 +241,7 @@ PE.actions = {
     ];
     for (const [d, ci, its, status] of plan) {
       const items = its.map(([pi, q]) => ({ product_id: P[pi].id, name: P[pi].name, qty: d <= 30 ? q * 3 : q, unit_price: Number(P[pi].price), unit_cost: Number(P[pi].cost) }));
-      await PE.actions.registerSale({ customer_id: C[ci].id, sold_at: ago(d), payment_method: 'Pix', status, discount: 0, items, due_date: PE.u.addDays(ago(d), 15) });
+      await PE.actions.registerSale({ customer_id: C[ci].id, sold_at: ago(d), payment_method: 'Pix', status, discount: 0, items, due_date: PE.u.addDays(ago(d), 5) });
     }
     // Ajuste: produtos parados (Jaqueta e Cinto sem venda recente)
     const fin = [

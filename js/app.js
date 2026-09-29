@@ -7,7 +7,7 @@
   const PAY = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Boleto', 'Transferência', 'Fiado'];
   const STAGES = [['novo', 'Novo lead'], ['contato', 'Contato'], ['negociacao', 'Negociação'], ['proposta', 'Proposta'], ['venda', 'Venda'], ['posvenda', 'Pós-venda']];
   const NAV = [
-    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'],
+    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes WhatsApp', 'chat'],
     ['financeiro', 'Financeiro', 'wallet'], ['produtos', 'Produtos', 'box'], ['precificacao', 'Precificação', 'calc'],
     ['tarefas', 'Tarefas', 'check'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['configuracoes', 'Configurações', 'gear']
   ];
@@ -132,7 +132,7 @@
   function shell() {
     root.innerHTML = `<div class="app">
       <aside class="sidebar"><div class="brand"><span class="logo">P</span><span>Prumo<small>${esc(S.company.name)}</small></span></div>
-        ${NAV.map(([id, label, ic]) => `${id === 'produtos' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : ''}</a>`).join('')}
+        ${NAV.map(([id, label, ic]) => `${id === 'produtos' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : id === 'lembretes' ? '<span class="badge hidden" id="badge-lem" style="background:var(--orange)"></span>' : ''}</a>`).join('')}
         <div style="flex:1"></div><a class="nav-link" href="#" data-act="logout">${UI.ico('logout')}<span>Sair</span></a></aside>
       <div class="main"><header class="topbar"><div class="mobile-brand"><span class="logo" style="width:30px;height:30px;border-radius:10px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:16px">P</span>Prumo</div><div class="muted small grow" id="crumb"></div>
         <div class="row"><button class="btn primary sm" data-act="sale-new">${UI.ico('plus', 16)} Registrar venda</button></div></header>
@@ -156,6 +156,7 @@
     document.getElementById('crumb').textContent = NAV.find(n => n[0] === view)?.[1] || '';
     document.title = `${NAV.find(n => n[0] === view)?.[1] || 'Prumo'} · Prumo`;
     const urgent = E.alerts(S).filter(a => a.level === 'urgent').length;
+    const rem = E.reminders(S).length; const bl = document.getElementById('badge-lem'); if (bl) { bl.textContent = rem; bl.classList.toggle('hidden', !rem); }
     ['badge-desk', 'badge-mob'].forEach(id => { const b = document.getElementById(id); if (b) { b.textContent = urgent; b.classList.toggle('hidden', !urgent); } });
     c.innerHTML = VIEWS[view]();
   }
@@ -173,7 +174,7 @@
   const delta = (d, invert) => d === null ? '<span class="muted">sem comparação</span>' : `<span class="${(d >= 0) !== !!invert ? 'up' : 'down'}">${d >= 0 ? '▲' : '▼'} ${U.pct(Math.abs(d), 0)}</span> <span class="muted">vs. anterior</span>`;
   const kpi = (label, value, sub, cls = '') => `<div class="card kpi ${cls}"><div class="label">${label}</div><div class="value num">${value}</div><div class="delta">${sub || ''}</div></div>`;
   const alertHTML = (a, actions = true) => `<div class="alert ${a.level}"><span class="dot"></span><div class="grow"><div class="a-title">${esc(a.title)}</div><div class="a-detail">${esc(a.detail)}</div>${actions ? `<div class="a-actions"><a class="btn sm ghost" href="#/${a.route}">${esc(a.cta || 'Ver')}</a><button class="btn sm ghost" data-act="dismiss-alert" data-key="${esc(a.key)}">Dispensar 7 dias</button></div>` : ''}</div></div>`;
-  A['dismiss-alert'] = async d => { await PE.db.insert('notifications', { alert_key: d.key, dismissed_until: U.addDays(U.today(), 7) }); refresh(); };
+  A['dismiss-alert'] = async d => { await PE.actions.mark(d.key, 7); refresh(); };
   const statusChip = st => { const m = E.statusMeta[st]; return `<span class="chip ${m.cls}">${m.label}</span>`; };
   const marginChip = m => `<span class="chip ${m >= Number(S.company.target_margin || 30) ? 'green' : m >= 10 ? 'yellow' : 'red'}">${U.pct(m, 0)}</span>`;
   const wa = c => { const n = U.digits(c.whatsapp || c.phone); return n ? `https://wa.me/${n.length <= 11 ? '55' + n : n}` : null; };
@@ -526,6 +527,48 @@
   }
   A['ask'] = d => ask(d.q);
   document.addEventListener('submit', e => { if (e.target.id === 'ask-form') { e.preventDefault(); const i = document.getElementById('ask-input'); const q = i.value; i.value = ''; ask(q); } });
+
+  /* ---------- LEMBRETES DE WHATSAPP ---------- */
+  let waFilter = 'todos';
+  VIEWS.lembretes = () => {
+    const all = E.reminders(S), st = E.waStats(S), T = E.waTypes;
+    const list = all.filter(r => waFilter === 'todos' || r.type === waFilter);
+    const count = t => all.filter(r => r.type === t).length;
+    return `<div class="page-head"><div><h1>Lembretes de WhatsApp</h1><p class="muted">Quem contatar hoje, com a mensagem pronta. Você revisa e envia.</p></div><button class="btn ghost" data-act="wa-templates">Editar mensagens</button></div>
+      <div class="grid cols-5" style="grid-template-columns:repeat(3,minmax(0,1fr))">${kpi('Para contatar hoje', all.length, '', 'orange')}${kpi('Enviadas em 30 dias', st.sent30, '', 'black')}${kpi('Clientes que voltaram', st.back, st.back ? `<span class="up">${U.brl0(st.value)} em vendas</span>` : '<span class="muted">após contato de retorno</span>', 'green')}</div>
+      <div class="filters"><button class="pill ${waFilter === 'todos' ? 'active' : ''}" data-act="wa-filter" data-k="todos">Todos (${all.length})</button>${Object.entries(T).map(([k, m]) => `<button class="pill ${waFilter === k ? 'active' : ''}" data-act="wa-filter" data-k="${k}">${m.label} (${count(k)})</button>`).join('')}</div>
+      ${list.length ? `<div class="list">${list.map(r => `<div class="item"><div class="avatar ${r.type === 'cobranca' ? '' : 'orange'}">${esc(U.initials(r.customer.name))}</div>
+        <div class="grow"><div class="title">${esc(r.customer.name)} ${UI.chip(T[r.type].label, T[r.type].cls)}</div><div class="sub">${esc(r.reason)}</div>${wa(r.customer) ? '' : '<div class="sub down">Sem telefone/WhatsApp cadastrado</div>'}</div>
+        <div class="right"><button class="btn sm primary" data-act="wa-open" data-key="${esc(r.key)}">Enviar WhatsApp</button><div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn sm ghost" data-act="wa-skip" data-key="${esc(r.key)}" data-days="3">Adiar 3 dias</button><button class="btn sm ghost" data-act="wa-skip" data-key="${esc(r.key)}" data-days="30">Ignorar</button></div></div></div>`).join('')}</div>`
+        : `<div class="card">${UI.empty('💬', all.length ? 'Nada neste filtro' : 'Nenhum contato pendente', all.length ? 'Escolha outro tipo acima.' : 'Quando um cliente sumir, uma cobrança vencer, uma proposta ficar sem resposta ou alguém fizer aniversário, ele aparece aqui.')}</div>`}
+      <p class="small muted">Envie apenas para clientes que já têm relacionamento com você. O envio é sempre manual: você revisa a mensagem antes de abrir o WhatsApp.</p>`;
+  };
+  A['wa-filter'] = d => { waFilter = d.k; refresh(); };
+  A['wa-skip'] = async d => { await PE.actions.mark(d.key.replace(/^wa:/, 'ws:'), Number(d.days)); refresh(); UI.toast(Number(d.days) > 3 ? 'Contato ignorado por 30 dias.' : 'Adiado por 3 dias.'); };
+  A['wa-open'] = d => {
+    const r = E.reminders(S).find(x => x.key === d.key); if (!r) return refresh();
+    const msg = E.waRender(E.waTemplate(S, r.type), r.vars), link = wa(r.customer);
+    UI.modal({ title: `Mensagem para ${r.customer.name}`, body: `<div class="row wrap">${UI.chip(E.waTypes[r.type].label, E.waTypes[r.type].cls)}<span class="small muted">${esc(r.reason)}</span></div>
+      ${link ? '' : `<div class="alert attention"><span class="dot"></span><div><div class="a-title">Cliente sem WhatsApp cadastrado</div><div class="a-detail">Adicione o telefone para abrir a conversa.</div><div class="a-actions"><button class="btn sm ghost" data-act="cust-edit" data-id="${r.customer.id}">Editar cliente</button></div></div></div>`}
+      <div class="field"><label>Mensagem (você pode editar)</label><textarea class="input" id="wa-msg" rows="6">${esc(msg)}</textarea><span class="hint">Ao abrir o WhatsApp, este contato é marcado como enviado e sai da fila.</span></div>
+      <div class="modal-foot"><button class="btn ghost" data-act="close-modal">Cancelar</button><button class="btn ghost" id="wa-copy">Copiar</button><button class="btn primary" id="wa-go" ${link ? '' : 'disabled'}>Abrir WhatsApp</button></div>`,
+      onMount: m => {
+        m.querySelector('#wa-copy').onclick = async () => { try { await navigator.clipboard.writeText(m.querySelector('#wa-msg').value); UI.toast('Mensagem copiada.'); } catch { UI.toast('Não foi possível copiar.', 'err'); } };
+        m.querySelector('#wa-go').onclick = async e => {
+          window.open(`${link}?text=${encodeURIComponent(m.querySelector('#wa-msg').value)}`, '_blank', 'noopener');
+          await UI.run(async () => { await PE.actions.mark(r.key, E.waTypes[r.type].cooldown); UI.closeModal(); refresh(); UI.toast('Marcado como enviado.'); }, e.currentTarget);
+        };
+      } });
+  };
+  A['wa-templates'] = () => {
+    const fields = Object.entries(E.waTypes).map(([k, m]) => ({ name: k, label: m.label, type: 'textarea', full: true }));
+    const values = Object.fromEntries(Object.keys(E.waTypes).map(k => [k, E.waTemplate(S, k)]));
+    UI.form({ title: 'Mensagens de WhatsApp', fields, values, submitLabel: 'Salvar mensagens',
+      extraFooter: '<button type="button" class="btn ghost" data-act="wa-tpl-reset" style="margin-right:auto">Restaurar padrão</button>',
+      onSubmit: async v => { const wa_templates = {}; Object.keys(E.waTypes).forEach(k => { wa_templates[k] = v[k] || E.waDefaults[k]; }); await PE.db.saveCompany({ settings: { ...(S.company.settings || {}), wa_templates } }); UI.closeModal(); refresh(); UI.toast('Mensagens salvas.'); } });
+    document.querySelector('.modal-body').insertAdjacentHTML('afterbegin', '<p class="small muted">Variáveis: {nome} {empresa} {valor} {vencimento} {titulo} {produto} {dias}. Elas são trocadas pelos dados de cada cliente.</p>');
+  };
+  A['wa-tpl-reset'] = async () => { const { wa_templates, ...rest } = S.company.settings || {}; await PE.db.saveCompany({ settings: rest }); UI.closeModal(); refresh(); UI.toast('Mensagens restauradas.'); };
 
   /* ---------- CONFIGURAÇÕES ---------- */
   VIEWS.configuracoes = () => {
