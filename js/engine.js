@@ -502,18 +502,18 @@ PE.perm = {
     operacional: { label: 'Operacional', desc: 'Produtos, estoque e tarefas.' }
   },
   modules: {
-    administrador: ['dashboard', 'clientes', 'vendas', 'lembretes', 'marketing', 'financeiro', 'produtos', 'precificacao', 'tarefas', 'atencao', 'consultor', 'equipe', 'configuracoes'],
-    gerente: ['dashboard', 'clientes', 'vendas', 'lembretes', 'marketing', 'financeiro', 'produtos', 'precificacao', 'tarefas', 'atencao', 'consultor', 'equipe'],
+    administrador: ['dashboard', 'clientes', 'vendas', 'lembretes', 'marketing', 'automacoes', 'financeiro', 'produtos', 'precificacao', 'tarefas', 'atencao', 'consultor', 'equipe', 'configuracoes'],
+    gerente: ['dashboard', 'clientes', 'vendas', 'lembretes', 'marketing', 'automacoes', 'financeiro', 'produtos', 'precificacao', 'tarefas', 'atencao', 'consultor', 'equipe'],
     vendedor: ['dashboard', 'clientes', 'vendas', 'lembretes', 'produtos', 'precificacao', 'tarefas', 'atencao'],
     financeiro: ['dashboard', 'clientes', 'vendas', 'financeiro', 'produtos', 'precificacao', 'tarefas', 'atencao', 'consultor'],
     operacional: ['dashboard', 'produtos', 'tarefas', 'atencao']
   },
-  moduleLabels: { dashboard: 'Início', clientes: 'Clientes', vendas: 'Vendas', lembretes: 'Lembretes', marketing: 'Marketing', financeiro: 'Financeiro', produtos: 'Produtos', precificacao: 'Precificação', tarefas: 'Tarefas', atencao: 'Atenção', consultor: 'Consultor', equipe: 'Equipe', configuracoes: 'Configurações' },
+  moduleLabels: { dashboard: 'Início', clientes: 'Clientes', vendas: 'Vendas', lembretes: 'Lembretes', marketing: 'Marketing', automacoes: 'Automações', financeiro: 'Financeiro', produtos: 'Produtos', precificacao: 'Precificação', tarefas: 'Tarefas', atencao: 'Atenção', consultor: 'Consultor', equipe: 'Equipe', configuracoes: 'Configurações' },
   actions: {
     'sale.create': ['administrador', 'gerente', 'vendedor'], 'sale.cancel': ['administrador', 'gerente'], 'sale.receive': ['administrador', 'gerente', 'financeiro'],
     'customer.write': ['administrador', 'gerente', 'vendedor'], 'customer.delete': ['administrador', 'gerente'], 'opp.write': ['administrador', 'gerente', 'vendedor'],
     'product.write': ['administrador', 'gerente', 'operacional'], 'stock.adjust': ['administrador', 'gerente', 'operacional'],
-    'finance.write': ['administrador', 'gerente', 'financeiro'], 'campaign.write': ['administrador', 'gerente'],
+    'finance.write': ['administrador', 'gerente', 'financeiro'], 'campaign.write': ['administrador', 'gerente'], 'auto.write': ['administrador', 'gerente'],
     'team.manage': ['administrador'], 'company.edit': ['administrador']
   },
   kpis: {

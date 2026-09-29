@@ -7,7 +7,7 @@
   const PAY = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Boleto', 'Transferência', 'Fiado'];
   const STAGES = [['novo', 'Novo lead'], ['contato', 'Contato'], ['negociacao', 'Negociação'], ['proposta', 'Proposta'], ['venda', 'Venda'], ['posvenda', 'Pós-venda']];
   const NAV = [
-    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes WhatsApp', 'chat'], ['marketing', 'Marketing', 'megaphone'],
+    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes WhatsApp', 'chat'], ['marketing', 'Marketing', 'megaphone'], ['automacoes', 'Automações', 'bolt'],
     ['financeiro', 'Financeiro', 'wallet'], ['produtos', 'Produtos', 'box'], ['precificacao', 'Precificação', 'calc'],
     ['tarefas', 'Tarefas', 'check'], ['equipe', 'Equipe e permissões', 'users'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['configuracoes', 'Configurações', 'gear']
   ];
@@ -151,6 +151,7 @@
     view = h;
     refresh();
     window.scrollTo({ top: 0 });
+    PE.auto.runScan(false).then(n => { if (n) refresh(); }).catch(() => {});
   }
   function refresh() {
     const c = document.getElementById('content'); if (!c) return;
@@ -260,7 +261,7 @@
     { name: 'origin', label: 'Origem', type: 'select', options: ['', 'Indicação', 'Instagram', 'WhatsApp', 'Site', 'Loja física', 'Marketplace', 'Outros'] },
     { name: 'birthday', label: 'Aniversário', type: 'date' }, { name: 'notes', label: 'Observações', type: 'textarea', full: true }
   ];
-  A['cust-new'] = () => UI.form({ title: 'Adicionar cliente', fields: custFields, onSubmit: async v => { await PE.db.insert('customers', v); UI.closeModal(); refresh(); UI.toast('Cliente cadastrado.'); } });
+  A['cust-new'] = () => UI.form({ title: 'Adicionar cliente', fields: custFields, onSubmit: async v => { const cu = await PE.db.insert('customers', v); PE.auto.emit('cliente_cadastrado', { customer: cu }).catch(() => {}); UI.closeModal(); refresh(); UI.toast('Cliente cadastrado.'); } });
   A['cust-edit'] = d => { const c = S.customers.find(x => x.id === d.id); UI.form({ title: 'Editar cliente', fields: custFields, values: c, onSubmit: async v => { await PE.db.update('customers', c.id, v); UI.closeModal(); refresh(); UI.toast('Cliente atualizado.'); } }); };
   A['cust-del'] = d => UI.confirm('Excluir este cliente? As vendas já registradas continuam no histórico.', async () => { await PE.db.remove('customers', d.id); refresh(); UI.toast('Cliente excluído.'); });
   A['cust-open'] = d => {
@@ -298,6 +299,7 @@
   A['opp-move'] = async d => {
     const o = S.opportunities.find(x => x.id === d.id); const i = STAGES.findIndex(s => s[0] === o.stage) + Number(d.dir); const to = STAGES[i][0];
     await PE.db.update('opportunities', o.id, { stage: to }); refresh();
+    PE.auto.emit('oportunidade_etapa', { opp: o, customer: S.customers.find(c => c.id === o.customer_id), titulo: o.title, valor: Number(o.value), etapa: STAGES[i][1], etapaKey: to }).catch(() => {});
     if (to === 'venda') UI.confirm(`Registrar a venda de ${U.brl(o.value)} agora?`, async () => { UI.closeModal(); openSaleForm({ customer_id: o.customer_id, avulso: { name: o.title, price: Number(o.value) } }); }, 'Registrar venda');
   };
 
@@ -489,7 +491,7 @@
     const open = all.filter(t => t.status !== 'concluida').sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'));
     const groups = [['Atrasadas', open.filter(t => t.due_date && t.due_date < T), 'red'], ['Hoje', open.filter(t => t.due_date === T), 'orange'], ['Próximas', open.filter(t => t.due_date > T), ''], ['Sem prazo', open.filter(t => !t.due_date), '']];
     const done = all.filter(t => t.status === 'concluida').slice(0, 8);
-    const item = t => `<div class="item"><button class="icon-btn" data-act="task-toggle" data-id="${t.id}" aria-label="Concluir" style="${t.status === 'concluida' ? 'background:var(--green);color:#fff;border-color:var(--green)' : ''}">${t.status === 'concluida' ? '✓' : ''}</button><div class="grow clickable" data-act="task-edit" data-id="${t.id}"><div class="title" style="${t.status === 'concluida' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(t.title)}</div><div class="sub">${esc(t.category)}${t.due_date ? ' · ' + U.fmtDate(t.due_date) : ''}${custName(t.customer_id) ? ' · ' + esc(custName(t.customer_id)) : ''}${t.assignee_id && memberOf(t.assignee_id) ? ' · 👤 ' + esc(memberName(memberOf(t.assignee_id))) : ''}${t.recurrence && t.recurrence !== 'nenhuma' ? ' · 🔁 ' + t.recurrence : ''}</div></div>${UI.chip(t.priority, t.priority === 'alta' ? 'red' : t.priority === 'media' ? 'yellow' : '')}</div>`;
+    const item = t => `<div class="item"><button class="icon-btn" data-act="task-toggle" data-id="${t.id}" aria-label="Concluir" style="${t.status === 'concluida' ? 'background:var(--green);color:#fff;border-color:var(--green)' : ''}">${t.status === 'concluida' ? '✓' : ''}</button><div class="grow clickable" data-act="task-edit" data-id="${t.id}"><div class="title" style="${t.status === 'concluida' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(t.title)}</div><div class="sub">${esc(t.category)}${t.due_date ? ' · ' + U.fmtDate(t.due_date) : ''}${custName(t.customer_id) ? ' · ' + esc(custName(t.customer_id)) : ''}${t.assignee_id && memberOf(t.assignee_id) ? ' · 👤 ' + esc(memberName(memberOf(t.assignee_id))) : ''}${t.recurrence && t.recurrence !== 'nenhuma' ? ' · 🔁 ' + t.recurrence : ''}</div></div>${t.status !== 'concluida' && wa(S.customers.find(c => c.id === t.customer_id) || {}) ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="${wa(S.customers.find(c => c.id === t.customer_id))}">WhatsApp</a>` : ''}${UI.chip(t.priority, t.priority === 'alta' ? 'red' : t.priority === 'media' ? 'yellow' : '')}</div>`;
     return `<div class="page-head"><h1>Tarefas</h1><button class="btn primary" data-act="task-new">${UI.ico('plus', 16)} Nova tarefa</button></div>
       <div class="filters">${['todas', ...(S.members.length > 1 ? ['minhas'] : []), ...TASK_CATS].map(k => `<button class="pill ${taskCat === k ? 'active' : ''}" data-act="task-cat" data-k="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
       ${open.length ? groups.filter(g => g[1].length).map(([l, arr, cls]) => `<div class="stack" style="gap:8px"><div class="row"><h3>${l}</h3>${UI.chip(arr.length, cls)}</div><div class="list">${arr.map(item).join('')}</div></div>`).join('') : `<div class="card">${UI.empty('✅', 'Nenhuma tarefa aberta', 'Crie tarefas para não esquecer cobranças, reposições e follow-ups.', '<button class="btn primary" data-act="task-new">Nova tarefa</button>')}</div>`}
@@ -685,6 +687,89 @@
   A['camp-status'] = async d => { const c = S.campaigns.find(x => x.id === d.id); await PE.db.update('campaigns', c.id, { status: c.status === 'encerrada' ? 'ativa' : 'encerrada' }); UI.closeModal(); refresh(); UI.toast(c.status === 'encerrada' ? 'Campanha reativada.' : 'Campanha encerrada.'); };
   A['camp-del'] = d => { UI.closeModal(); UI.confirm('Excluir esta campanha e o histórico de envios dela?', async () => { for (const n of S.notifications.filter(n => n.alert_key.startsWith(`cp:${d.id}:`))) await PE.db.remove('notifications', n.id); await PE.db.remove('campaigns', d.id); refresh(); UI.toast('Campanha excluída.'); }); };
 
+  /* ---------- AUTOMAÇÕES ---------- */
+  const AU = PE.auto;
+  const AU_STAGES = Object.entries(AU.stageLabel);
+  const AU_CATS = ['vendas', 'financeiro', 'marketing', 'estoque', 'administrativo'];
+  const autoFlow = a => `<div class="small" style="margin-top:6px;line-height:1.7"><span class="flow-tag">QUANDO</span> ${esc(AU.describeTrigger(a.trigger || {}))}${(a.actions || []).map((x, i) => `<br><span class="flow-tag">${i ? 'E' : 'ENTÃO'}</span> ${esc(AU.describeAction(x))}`).join('')}</div>`;
+
+  VIEWS.automacoes = () => {
+    const list = S.automations, active = list.filter(a => a.active).length, runs = AU.runs(S, null, 30);
+    const used = new Set(list.map(a => a.trigger?.preset).filter(Boolean));
+    const presets = AU.presets.filter(p => !used.has(p.key));
+    const recent = [...AU.runs(S, null, 30)].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 8);
+    return `<div class="page-head"><div><h1>Automações</h1><p class="muted">Deixe o Prumo lembrar e agir por você: quando algo acontecer, ele cria a tarefa certa.</p></div>
+        <div class="row wrap"><button class="btn ghost" data-act="auto-scan">Verificar agora</button><button class="btn primary" data-act="auto-new">${UI.ico('plus', 16)} Nova automação</button></div></div>
+      <div class="grid cols-5" style="grid-template-columns:repeat(3,minmax(0,1fr))">${kpi('Automações ativas', active, `<span class="muted">de ${list.length}</span>`, 'orange')}${kpi('Execuções em 30 dias', runs.length, '', 'black')}${kpi('Última verificação', AU.lastScan ? new Date(AU.lastScan).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—', '<span class="muted">ao abrir o app</span>')}</div>
+      ${presets.length ? `<div class="stack" style="gap:8px"><h3>Comece por aqui</h3><div class="grid cols-2">${presets.map(p => `<div class="card flat stack" style="gap:6px"><strong>${esc(p.name)}</strong><p class="small muted">${esc(p.why)}</p>${autoFlow({ trigger: p.trigger, actions: p.actions })}<div><button class="btn sm soft" data-act="auto-preset" data-key="${p.key}">Ativar</button></div></div>`).join('')}</div></div>` : ''}
+      ${list.length ? `<div class="stack" style="gap:8px"><h3>Suas automações</h3><div class="list">${list.map(a => `<div class="item" style="align-items:flex-start"><div class="avatar ${a.active ? 'orange' : ''}">${UI.ico('bolt', 18)}</div><div class="grow"><div class="title">${esc(a.name)} ${a.active ? UI.chip('Ativa', 'green') : UI.chip('Pausada')}</div>${autoFlow(a)}<div class="small muted" style="margin-top:4px">${AU.runs(S, a.id, 30).length} execução(ões) nos últimos 30 dias</div></div>
+        <div class="row wrap" style="justify-content:flex-end"><button class="btn sm ghost" data-act="auto-toggle" data-id="${a.id}">${a.active ? 'Pausar' : 'Ativar'}</button><button class="btn sm ghost" data-act="auto-edit" data-id="${a.id}">Editar</button><button class="btn sm danger" data-act="auto-del" data-id="${a.id}">Excluir</button></div></div>`).join('')}</div></div>`
+        : `<div class="card">${UI.empty('⚡', 'Nenhuma automação ainda', 'Ative uma das sugestões acima ou monte a sua com QUANDO → ENTÃO.')}</div>`}
+      ${recent.length ? `<div class="stack" style="gap:8px"><h3>Últimas execuções</h3><div class="list">${recent.map(n => { const [, aid, ent] = n.alert_key.split(':'), a = S.automations.find(x => x.id === aid); const ref = S.customers.find(c => c.id === ent)?.name || S.products.find(p => p.id === ent)?.name || S.opportunities.find(o => o.id === ent)?.title || S.transactions.find(t => t.id === ent)?.description || ''; return `<div class="item"><div class="grow"><div class="title">${esc(a?.name || 'Automação removida')}</div><div class="sub">${esc(ref)}</div></div><span class="chip">${U.fmtDate((n.created_at || '').slice(0, 10))}</span></div>`; }).join('')}</div></div>` : ''}
+      <p class="small muted">Eventos (comprar, cadastrar cliente, mudar de etapa) disparam na hora. Condições (dias sem comprar, conta vencendo, estoque baixo) são verificadas quando alguém da gerência abre o app, no máximo a cada 5 minutos. Cada item é tratado uma vez, sem repetição.</p>`;
+  };
+
+  const autoFields = () => [
+    { name: 'name', label: 'Nome da automação', required: true, full: true, placeholder: 'Ex.: Cliente sumido vira tarefa' },
+    { name: 't_type', label: 'QUANDO', type: 'select', options: Object.entries(AU.triggers).map(([k, t]) => [k, t.label]), full: true },
+    { name: 't_days', label: 'Quantos dias?', type: 'number', min: 0, step: '1' },
+    { name: 't_stage', label: 'Etapa', type: 'select', options: [['', 'Qualquer etapa'], ...AU_STAGES] },
+    { name: 'a1_type', label: 'ENTÃO', type: 'select', options: Object.entries(AU.actionTypes), full: true },
+    { name: 'a1_title', label: 'Título (pode usar variáveis)', required: true, full: true, hint: 'Variáveis: ' + AU.vars },
+    { name: 'a1_category', label: 'Categoria da tarefa', type: 'select', options: AU_CATS }, { name: 'a1_priority', label: 'Prioridade', type: 'select', options: [['alta', 'Alta'], ['media', 'Média'], ['baixa', 'Baixa']] },
+    { name: 'a1_due', label: 'Prazo (dias a partir de hoje)', type: 'number', min: 0, step: '1' }, { name: 'a1_value', label: 'Valor da oportunidade (R$)', type: 'number', min: 0, step: '0.01' },
+    { name: 'a2_type', label: 'E (ação extra, opcional)', type: 'select', options: [['', '— nenhuma —'], ...Object.entries(AU.actionTypes)], full: true },
+    { name: 'a2_title', label: 'Título da ação extra', full: true }, { name: 'a2_due', label: 'Prazo da ação extra (dias)', type: 'number', min: 0, step: '1' }
+  ];
+  const autoToValues = a => { const t = a.trigger || {}, x = a.actions?.[0] || { params: {} }, y = a.actions?.[1]; return { name: a.name, t_type: t.type, t_days: t.params?.days ?? '', t_stage: t.params?.stage || '', a1_type: x.type, a1_title: x.params?.title, a1_category: x.params?.category || 'vendas', a1_priority: x.params?.priority || 'media', a1_due: x.params?.due_days ?? 0, a1_value: x.params?.value ?? '', a2_type: y?.type || '', a2_title: y?.params?.title || '', a2_due: y?.params?.due_days ?? 0 }; };
+  const autoFromForm = (v, preset) => {
+    const meta = AU.triggers[v.t_type], params = {};
+    if (meta.days !== undefined) params.days = v.t_days ?? meta.days;
+    if (meta.stage && v.t_stage) params.stage = v.t_stage;
+    const actions = [{ type: v.a1_type, params: { title: v.a1_title, category: v.a1_category || 'vendas', priority: v.a1_priority || 'media', due_days: v.a1_due || 0, ...(v.a1_type === 'criar_oportunidade' && v.a1_value ? { value: v.a1_value } : {}) } }];
+    if (v.a2_type && v.a2_title) actions.push({ type: v.a2_type, params: { title: v.a2_title, category: 'vendas', priority: 'media', due_days: v.a2_due || 0 } });
+    return { name: v.name, trigger: { type: v.t_type, params, ...(preset ? { preset } : {}) }, actions };
+  };
+  /** Mostra só os campos que fazem sentido para o gatilho e a ação escolhidos. */
+  const autoFormBehavior = () => {
+    const f = document.getElementById('pe-form'); if (!f) return;
+    const box = n => f.elements[n]?.closest('.field'), show = (n, on) => box(n) && (box(n).style.display = on ? '' : 'none');
+    const sync = () => {
+      const t = AU.triggers[f.elements.t_type.value], a1 = f.elements.a1_type.value;
+      show('t_days', t.days !== undefined); if (t.days !== undefined) box('t_days').querySelector('label').textContent = t.daysLabel;
+      show('t_stage', !!t.stage); show('a1_category', a1 === 'criar_tarefa'); show('a1_priority', a1 === 'criar_tarefa'); show('a1_value', a1 === 'criar_oportunidade');
+      const a2 = f.elements.a2_type.value; show('a2_title', !!a2); show('a2_due', !!a2);
+    };
+    f.elements.t_type.addEventListener('change', () => { const t = AU.triggers[f.elements.t_type.value]; if (t.days !== undefined && f.elements.t_days.value === '') f.elements.t_days.value = t.days; sync(); });
+    ['a1_type', 'a2_type'].forEach(n => f.elements[n].addEventListener('change', sync)); sync();
+  };
+  const autoSave = async (v, existing) => {
+    const t = AU.triggers[v.t_type];
+    if (t.days !== undefined && (v.t_days === null || v.t_days < 0)) throw new Error('Informe os dias.');
+    const data = autoFromForm(v, existing?.trigger?.preset);
+    if (existing) await PE.db.update('automations', existing.id, data); else await PE.db.insert('automations', { ...data, active: true });
+    UI.closeModal(); refresh();
+    const n = await AU.runScan(true); if (n) refresh();
+    UI.toast(existing ? 'Automação atualizada.' : 'Automação criada e ativa.');
+  };
+  A['auto-new'] = () => { UI.form({ title: 'Nova automação', fields: autoFields(), submitLabel: 'Criar automação', values: { t_type: 'cliente_sem_comprar', t_days: 90, a1_type: 'criar_tarefa', a1_category: 'vendas', a1_priority: 'media', a1_due: 1 }, onSubmit: v => autoSave(v) }); autoFormBehavior(); };
+  A['auto-edit'] = d => { const a = S.automations.find(x => x.id === d.id); UI.form({ title: 'Editar automação', fields: autoFields(), values: autoToValues(a), onSubmit: v => autoSave(v, a) }); autoFormBehavior(); };
+  A['auto-preset'] = async d => {
+    const p = AU.presets.find(x => x.key === d.key);
+    await PE.db.insert('automations', { name: p.name, trigger: { ...p.trigger, preset: p.key }, actions: p.actions, active: true });
+    refresh(); const n = await AU.runScan(true); refresh(); UI.toast(n ? `Automação ativa: ${n} ação(ões) já executada(s).` : 'Automação ativa.');
+  };
+  A['auto-toggle'] = async d => { const a = S.automations.find(x => x.id === d.id); await PE.db.update('automations', a.id, { active: !a.active }); refresh(); if (!a.active) { const n = await AU.runScan(true); if (n) refresh(); } };
+  A['auto-del'] = d => UI.confirm('Excluir esta automação? As tarefas que ela já criou permanecem.', async () => { await PE.db.remove('automations', d.id); refresh(); UI.toast('Automação excluída.'); });
+  A['auto-scan'] = async (_d, btn) => UI.run(async () => { const n = await AU.runScan(true); refresh(); UI.toast(n ? `${n} ação(ões) executada(s).` : 'Nada novo para executar agora.'); }, btn);
+
+  // Resumo único quando várias automações disparam de uma vez
+  let auQueue = [], auTimer = null;
+  AU.onRun = (a, made) => {
+    auQueue.push(...made); clearTimeout(auTimer);
+    auTimer = setTimeout(() => { const n = auQueue.length; auQueue = []; if (n) UI.toast(`Automações criaram ${n} ite${n === 1 ? 'm' : 'ns'} (veja em Tarefas).`); refresh(); }, 500);
+  };
+
   /* ---------- EQUIPE E PERMISSÕES ---------- */
   const roleOpts = Object.entries(PE.perm.roles).map(([k, r]) => [k, r.label]);
   const roleChip = r => UI.chip(PE.perm.roles[r]?.label || r, { administrador: 'black', gerente: 'orange', vendedor: 'blue', financeiro: 'green' }[r] || '');
@@ -745,6 +830,7 @@
   /* ---------- PERMISSÕES NA INTERFACE ---------- */
   // Ação da tela -> permissão exigida. O banco também impõe (RLS); aqui só evitamos botões que não funcionariam.
   const PERM_ACTS = {
+    'auto-new': 'auto.write', 'auto-edit': 'auto.write', 'auto-preset': 'auto.write', 'auto-toggle': 'auto.write', 'auto-del': 'auto.write', 'auto-scan': 'auto.write',
     'sale-new': 'sale.create', 'sale-cancel': 'sale.cancel', 'sale-receive': 'sale.receive',
     'cust-new': 'customer.write', 'cust-edit': 'customer.write', 'cust-del': 'customer.delete', 'cust-followup': 'customer.write',
     'opp-new': 'opp.write', 'opp-edit': 'opp.write', 'opp-move': 'opp.write', 'opp-del': 'opp.write', 'opp-lost': 'opp.write',

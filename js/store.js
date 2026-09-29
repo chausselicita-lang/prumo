@@ -20,7 +20,7 @@ PE.u = {
 };
 
 /* ---------------- Camada de dados ---------------- */
-const TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks', 'stock_movements', 'notifications', 'consultations', 'campaigns', 'members', 'invites'];
+const TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks', 'stock_movements', 'notifications', 'consultations', 'campaigns', 'members', 'invites', 'automations'];
 const LS_KEY = 'prumo_demo_v1';
 
 PE.state = { company: null, ...Object.fromEntries(TABLES.map(t => [t, []])) };
@@ -183,6 +183,8 @@ PE.actions = {
       due_date: status === 'paga' ? sold_at : (due_date || sold_at), paid_date: status === 'paga' ? sold_at : null,
       customer_id: customer_id || null, sale_id: sale.id, recurrence: 'nenhuma'
     });
+    // Automações: dispara o evento "cliente comprou" e reavalia condições (ex.: estoque baixo)
+    PE.auto?.emit('venda_registrada', { sale, customer: cust, valor: total }).then(() => PE.auto.runScan(true)).catch(() => {});
     return sale;
   },
 

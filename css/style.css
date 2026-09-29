@@ -251,3 +251,6 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--silver-100); }
 /* Indicadores em quantidade variável (permissões por perfil) */
 .grid.kpis { grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); }
 @media (max-width: 900px) { .grid.kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid.kpis > :first-child { grid-column: 1 / -1; } }
+
+/* Automações: QUANDO / ENTÃO / E */
+.flow-tag { display: inline-block; min-width: 58px; font-weight: 800; font-size: 11px; letter-spacing: .08em; color: var(--orange-600); }

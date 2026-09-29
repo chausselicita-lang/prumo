@@ -564,3 +564,9 @@ create policy pe_transactions_vendedor_ins on pe_transactions for insert
   with check (kind = 'receita' and sale_id is not null and pe_has_role(company_id, array['vendedor']));
 
 NOTIFY pgrst, 'reload schema';
+
+-- Automações: todos os membros leem (para o app executar), só administrador e gerente editam
+drop policy if exists pe_automations_select on pe_automations;
+create policy pe_automations_select on pe_automations for select using (pe_is_member(company_id));
+
+NOTIFY pgrst, 'reload schema';
