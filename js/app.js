@@ -7,9 +7,9 @@
   const PAY = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Boleto', 'Transferência', 'Fiado'];
   const STAGES = [['novo', 'Novo lead'], ['contato', 'Contato'], ['negociacao', 'Negociação'], ['proposta', 'Proposta'], ['venda', 'Venda'], ['posvenda', 'Pós-venda']];
   const NAV = [
-    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes WhatsApp', 'chat'], ['marketing', 'Marketing', 'megaphone'], ['automacoes', 'Automações', 'bolt'],
+    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes', 'chat'], ['marketing', 'Marketing', 'megaphone'], ['automacoes', 'Automações', 'bolt'],
     ['financeiro', 'Financeiro', 'wallet'], ['produtos', 'Produtos', 'box'], ['precificacao', 'Precificação', 'calc'],
-    ['tarefas', 'Tarefas', 'check'], ['equipe', 'Equipe e permissões', 'users'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['relatorios', 'Relatórios', 'chart'], ['configuracoes', 'Configurações', 'gear']
+    ['tarefas', 'Tarefas', 'check'], ['equipe', 'Equipe', 'users'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['relatorios', 'Relatórios', 'chart'], ['configuracoes', 'Configurações', 'gear']
   ];
   const tabs = { clientes: 'clientes', financeiro: 'resumo' };
   let view = 'dashboard';

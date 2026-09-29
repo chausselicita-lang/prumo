@@ -368,3 +368,25 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--silver-100); }
 @media (max-width: 900px) {
   .filters { flex-wrap: wrap; overflow: visible; }
 }
+
+/* ---- Computador: cartões proporcionais e menu lateral compacto ---- */
+@media (min-width: 901px) {
+  .app { grid-template-columns: 210px 1fr; }
+  .sidebar { padding: 14px 10px; gap: 1px; }
+  .brand { padding: 2px 8px 12px; font-size: 20px; }
+  .brand .logo { width: 30px; height: 30px; border-radius: 10px; font-size: 16px; }
+  .nav-link { padding: 8px 11px; font-size: 14px; gap: 10px; border-radius: 10px; white-space: nowrap; }
+  .nav-sep { margin: 6px 4px; }
+  .topbar { padding: 10px 22px; }
+  .content { padding: 18px 22px; gap: 14px; }
+  .grid { gap: 10px; }
+  .card { padding: 15px; }
+  .card.kpi { padding: 10px 14px; }
+  .kpi .label { font-size: 11px; }
+  .kpi .value { font-size: 21px; margin-top: 2px; }
+  .kpi .delta { font-size: 12px; margin-top: 1px; }
+  .grid.split { align-items: start; }
+  .bars { height: 110px; }
+  .item { padding: 11px 13px; }
+  h1 { font-size: 26px; }
+}
