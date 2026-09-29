@@ -20,7 +20,7 @@ PE.u = {
 };
 
 /* ---------------- Camada de dados ---------------- */
-const TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks', 'stock_movements', 'notifications', 'consultations', 'campaigns'];
+const TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks', 'stock_movements', 'notifications', 'consultations', 'campaigns', 'members', 'invites'];
 const LS_KEY = 'prumo_demo_v1';
 
 PE.state = { company: null, ...Object.fromEntries(TABLES.map(t => [t, []])) };
@@ -95,8 +95,14 @@ PE.db = {
     if (this.mode === 'demo') {
       S.company = this._local.company;
       TABLES.forEach(t => { S[t] = this._local[t] || []; });
+      if (S.company && !S.members.length) {
+        const u = this.user || {};
+        S.members = this._local.members = [{ id: 'demo-member', company_id: S.company.id, user_id: u.id, role: 'administrador', name: S.company.owner_name || u.user_metadata?.name || (u.email || '').split('@')[0], email: u.email, monthly_goal: null, created_at: new Date().toISOString() }];
+        this._persist();
+      }
       return S;
     }
+    await this.sb.rpc('pe_accept_invites').then(() => {}, () => {});
     const { data: comps, error } = await this.sb.from('pe_companies').select('*').order('created_at').limit(1);
     if (error) throw error;
     S.company = comps && comps[0] ? comps[0] : null;
@@ -158,7 +164,7 @@ PE.actions = {
     const cost_total = items.reduce((s, i) => s + i.qty * i.unit_cost, 0);
     const sale = await PE.db.insert('sales', {
       customer_id: customer_id || null, sold_at, payment_method, status, discount: discount || 0,
-      total, cost_total, items, notes: notes || null
+      total, cost_total, items, notes: notes || null, created_by: PE.db.user?.id || null
     });
     if (PE.db.mode === 'cloud') {
       const rows = items.map(i => ({ company_id: S.company.id, sale_id: sale.id, product_id: i.product_id || null, name: i.name, quantity: i.qty, unit_price: i.unit_price, unit_cost: i.unit_cost }));

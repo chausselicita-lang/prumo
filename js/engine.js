@@ -355,6 +355,23 @@ PE.engine = {
     }
   },
 
+  /** Produtividade da equipe no mês: vendas (por quem registrou), meta e tarefas. */
+  team(S) {
+    const T = U.today(), m0 = T.slice(0, 8) + '01', d30 = U.addDays(T, -30);
+    return S.members.map(m => {
+      const sales = S.sales.filter(s => s.status !== 'cancelada' && s.created_by === m.user_id && s.sold_at >= m0);
+      const rev = sales.reduce((t, s) => t + Number(s.total), 0);
+      const tasks = S.tasks.filter(t => t.assignee_id === m.user_id);
+      const goal = Number(m.monthly_goal || 0);
+      return {
+        m, count: sales.length, rev, goal, pct: goal ? rev / goal * 100 : null,
+        done30: tasks.filter(t => t.status === 'concluida' && (t.updated_at || t.created_at || '').slice(0, 10) >= d30).length,
+        open: tasks.filter(t => t.status !== 'concluida').length,
+        late: tasks.filter(t => t.status !== 'concluida' && t.due_date && t.due_date < T).length
+      };
+    });
+  },
+
   levelMeta: { urgent: { label: 'Urgente', emoji: '🔴' }, attention: { label: 'Atenção', emoji: '🟡' }, info: { label: 'Informação', emoji: '🔵' }, opportunity: { label: 'Oportunidade', emoji: '🟢' } },
 
   /* ---------- Precificação ---------- */
@@ -473,4 +490,43 @@ PE.engine = {
     const v = idle.reduce((s, x) => s + x.st.stockValue, 0);
     return { dado: `${idle.length} produto(s) sem venda há mais de 90 dias, somando ${U.brl0(v)} em estoque: ${idle.slice(0, 4).map(x => x.p.name).join(', ')}.`, causa: 'Podem estar com preço acima do mercado, pouca divulgação ou baixa procura.', impacto: `${U.brl0(v)} do seu dinheiro está parado em prateleira.`, acao: 'Monte uma promoção ou combo com esses itens, divulgue para clientes antigos e, se preciso, venda pelo custo para liberar caixa.' };
   }
+};
+
+/* ---------- Permissões por papel ---------- */
+PE.perm = {
+  roles: {
+    administrador: { label: 'Administrador', desc: 'Acesso total, inclusive equipe e configurações.' },
+    gerente: { label: 'Gerente', desc: 'Opera tudo, menos configurações da empresa e gestão de usuários.' },
+    vendedor: { label: 'Vendedor', desc: 'Clientes, vendas, lembretes e tarefas. Não vê o financeiro.' },
+    financeiro: { label: 'Financeiro', desc: 'Contas, caixa e resultado. Consulta vendas e clientes.' },
+    operacional: { label: 'Operacional', desc: 'Produtos, estoque e tarefas.' }
+  },
+  modules: {
+    administrador: ['dashboard', 'clientes', 'vendas', 'lembretes', 'marketing', 'financeiro', 'produtos', 'precificacao', 'tarefas', 'atencao', 'consultor', 'equipe', 'configuracoes'],
+    gerente: ['dashboard', 'clientes', 'vendas', 'lembretes', 'marketing', 'financeiro', 'produtos', 'precificacao', 'tarefas', 'atencao', 'consultor', 'equipe'],
+    vendedor: ['dashboard', 'clientes', 'vendas', 'lembretes', 'produtos', 'precificacao', 'tarefas', 'atencao'],
+    financeiro: ['dashboard', 'clientes', 'vendas', 'financeiro', 'produtos', 'precificacao', 'tarefas', 'atencao', 'consultor'],
+    operacional: ['dashboard', 'produtos', 'tarefas', 'atencao']
+  },
+  moduleLabels: { dashboard: 'Início', clientes: 'Clientes', vendas: 'Vendas', lembretes: 'Lembretes', marketing: 'Marketing', financeiro: 'Financeiro', produtos: 'Produtos', precificacao: 'Precificação', tarefas: 'Tarefas', atencao: 'Atenção', consultor: 'Consultor', equipe: 'Equipe', configuracoes: 'Configurações' },
+  actions: {
+    'sale.create': ['administrador', 'gerente', 'vendedor'], 'sale.cancel': ['administrador', 'gerente'], 'sale.receive': ['administrador', 'gerente', 'financeiro'],
+    'customer.write': ['administrador', 'gerente', 'vendedor'], 'customer.delete': ['administrador', 'gerente'], 'opp.write': ['administrador', 'gerente', 'vendedor'],
+    'product.write': ['administrador', 'gerente', 'operacional'], 'stock.adjust': ['administrador', 'gerente', 'operacional'],
+    'finance.write': ['administrador', 'gerente', 'financeiro'], 'campaign.write': ['administrador', 'gerente'],
+    'team.manage': ['administrador'], 'company.edit': ['administrador']
+  },
+  kpis: {
+    administrador: ['vendas', 'receitas', 'despesas', 'lucro', 'caixa'], gerente: ['vendas', 'receitas', 'despesas', 'lucro', 'caixa'],
+    financeiro: ['vendas', 'receitas', 'despesas', 'lucro', 'caixa'], vendedor: ['vendas'], operacional: []
+  },
+  /** Papel do usuário atual. No modo demonstração dá para "visualizar como" outro papel. */
+  current() {
+    if (PE.db.mode === 'demo') return localStorage.getItem('prumo_demo_role') || 'administrador';
+    const uid = PE.db.user?.id, m = PE.state.members.find(x => x.user_id === uid);
+    if (m) return m.role;
+    return PE.state.company?.owner_id === uid ? 'administrador' : 'operacional';
+  },
+  can(action) { return (this.actions[action] || []).includes(this.current()); },
+  canModule(id) { return this.modules[this.current()].includes(id); }
 };

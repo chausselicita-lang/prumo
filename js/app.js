@@ -9,7 +9,7 @@
   const NAV = [
     ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes WhatsApp', 'chat'], ['marketing', 'Marketing', 'megaphone'],
     ['financeiro', 'Financeiro', 'wallet'], ['produtos', 'Produtos', 'box'], ['precificacao', 'Precificação', 'calc'],
-    ['tarefas', 'Tarefas', 'check'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['configuracoes', 'Configurações', 'gear']
+    ['tarefas', 'Tarefas', 'check'], ['equipe', 'Equipe e permissões', 'users'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['configuracoes', 'Configurações', 'gear']
   ];
   const tabs = { clientes: 'clientes', financeiro: 'resumo' };
   let view = 'dashboard';
@@ -132,21 +132,23 @@
   function shell() {
     root.innerHTML = `<div class="app">
       <aside class="sidebar"><div class="brand"><span class="logo">P</span><span>Prumo<small>${esc(S.company.name)}</small></span></div>
-        ${NAV.map(([id, label, ic]) => `${id === 'produtos' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : id === 'lembretes' ? '<span class="badge hidden" id="badge-lem" style="background:var(--orange)"></span>' : ''}</a>`).join('')}
+        ${NAV.filter(n => PE.perm.canModule(n[0])).map(([id, label, ic]) => `${id === 'produtos' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : id === 'lembretes' ? '<span class="badge hidden" id="badge-lem" style="background:var(--orange)"></span>' : ''}</a>`).join('')}
         <div style="flex:1"></div><a class="nav-link" href="#" data-act="logout">${UI.ico('logout')}<span>Sair</span></a></aside>
       <div class="main"><header class="topbar"><div class="mobile-brand"><span class="logo" style="width:30px;height:30px;border-radius:10px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:16px">P</span>Prumo</div><div class="muted small grow" id="crumb"></div>
-        <div class="row"><button class="btn primary sm" data-act="sale-new">${UI.ico('plus', 16)} Registrar venda</button></div></header>
+        <div class="row">${PE.db.mode === 'demo' ? `<select class="input" style="width:auto;padding:7px 10px;font-size:13px" data-act-change="demo-role" aria-label="Ver como">${Object.entries(PE.perm.roles).map(([k, r]) => `<option value="${k}" ${k === PE.perm.current() ? 'selected' : ''}>Ver como: ${r.label}</option>`).join('')}</select>` : ''}<button class="btn primary sm" data-act="sale-new">${UI.ico('plus', 16)} Registrar venda</button></div></header>
         <main class="content" id="content"></main></div>
-      <nav class="bottom-nav">${[['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['financeiro', 'Caixa', 'wallet'], ['atencao', 'Atenção', 'bell']].map(([id, l, ic]) => `<a href="#/${id}" data-nav="${id}">${UI.ico(ic, 22)}<span>${l}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-mob"></span>' : ''}</a>`).join('')}<a href="#" data-act="more">${UI.ico('dots', 22)}<span>Mais</span></a></nav></div>`;
+      <nav class="bottom-nav">${[['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['financeiro', 'Caixa', 'wallet'], ['atencao', 'Atenção', 'bell']].filter(x => PE.perm.canModule(x[0])).map(([id, l, ic]) => `<a href="#/${id}" data-nav="${id}">${UI.ico(ic, 22)}<span>${l}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-mob"></span>' : ''}</a>`).join('')}<a href="#" data-act="more">${UI.ico('dots', 22)}<span>Mais</span></a></nav></div>`;
     route();
   }
   A['logout'] = async () => { await PE.db.signOut(); renderAuth(); };
-  A['more'] = () => UI.modal({ title: 'Mais opções', body: `<div class="list">${NAV.filter(n => !['dashboard', 'clientes', 'vendas', 'financeiro', 'atencao'].includes(n[0])).map(([id, l, ic]) => `<a class="item clickable" href="#/${id}" data-act="close-modal" style="text-decoration:none">${UI.ico(ic)}<span class="title">${l}</span></a>`).join('')}<a class="item clickable" href="#" data-act="logout" style="text-decoration:none">${UI.ico('logout')}<span class="title">Sair</span></a></div>` });
+  A['more'] = () => UI.modal({ title: 'Mais opções', body: `<div class="list">${NAV.filter(n => !['dashboard', 'clientes', 'vendas', 'financeiro', 'atencao'].includes(n[0]) && PE.perm.canModule(n[0])).map(([id, l, ic]) => `<a class="item clickable" href="#/${id}" data-act="close-modal" style="text-decoration:none">${UI.ico(ic)}<span class="title">${l}</span></a>`).join('')}<a class="item clickable" href="#" data-act="logout" style="text-decoration:none">${UI.ico('logout')}<span class="title">Sair</span></a></div>` });
 
   function route() {
     if (!S.company) return;
-    const h = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('?')[0];
-    view = VIEWS[h] ? h : 'dashboard';
+    let h = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('?')[0];
+    if (!VIEWS[h]) h = 'dashboard';
+    if (!PE.perm.canModule(h)) { UI.toast('Seu perfil não tem acesso a esta área.', 'err'); if (location.hash !== '#/dashboard') { location.hash = '#/dashboard'; return; } h = 'dashboard'; }
+    view = h;
     refresh();
     window.scrollTo({ top: 0 });
   }
@@ -159,6 +161,7 @@
     const rem = E.reminders(S).length; const bl = document.getElementById('badge-lem'); if (bl) { bl.textContent = rem; bl.classList.toggle('hidden', !rem); }
     ['badge-desk', 'badge-mob'].forEach(id => { const b = document.getElementById(id); if (b) { b.textContent = urgent; b.classList.toggle('hidden', !urgent); } });
     c.innerHTML = VIEWS[view]();
+    applyPerms(document);
   }
   window.addEventListener('hashchange', route);
 
@@ -185,6 +188,15 @@
   const VIEWS = {};
 
   /* ---------- INÍCIO ---------- */
+  const kpiRow = (m, c) => {
+    const all = {
+      vendas: kpi('Vendas', U.brl0(c.vendas), delta(m.delta('vendas')), 'orange'), receitas: kpi('Receitas', U.brl0(c.receitas), delta(m.delta('receitas')), 'black'),
+      despesas: kpi('Despesas', U.brl0(c.despesas), delta(m.delta('despesas'), true)), lucro: kpi('Lucro estimado', U.brl0(c.lucro), delta(m.delta('lucro')), c.lucro >= 0 ? 'green' : 'red'),
+      caixa: kpi('Caixa', U.brl0(m.caixa), '<span class="muted">saldo hoje</span>', m.caixa >= 0 ? 'black' : 'red')
+    };
+    const keys = PE.perm.kpis[PE.perm.current()];
+    return keys.length ? `<div class="grid kpis" style="--n:${keys.length}">${keys.map(k => all[k]).join('')}</div>` : '';
+  };
   VIEWS.dashboard = () => {
     const p = per(), m = E.metrics(S, p), c = m.cur, hr = new Date().getHours();
     const greet = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite';
@@ -196,18 +208,12 @@
     ].slice(0, 5);
     return `<div class="page-head"><div><p class="muted">${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>${greet}, ${esc(firstName())}</h1></div>${periodBar()}</div>
     ${empty ? `<div class="card">${UI.empty('🚀', 'Vamos começar?', 'Registre sua primeira venda, cadastre produtos e clientes — ou explore o Prumo com dados de exemplo para ver tudo funcionando.', `<div class="row wrap" style="justify-content:center"><button class="btn primary" data-act="sale-new">Registrar venda</button><button class="btn ghost" data-act="load-sample">Carregar dados de exemplo</button></div>`)}</div>` : ''}
-    <div class="grid cols-5">
-      ${kpi('Vendas', U.brl0(c.vendas), delta(m.delta('vendas')), 'orange')}
-      ${kpi('Receitas', U.brl0(c.receitas), delta(m.delta('receitas')), 'black')}
-      ${kpi('Despesas', U.brl0(c.despesas), delta(m.delta('despesas'), true))}
-      ${kpi('Lucro estimado', U.brl0(c.lucro), delta(m.delta('lucro')), c.lucro >= 0 ? 'green' : 'red')}
-      ${kpi('Caixa', U.brl0(m.caixa), '<span class="muted">saldo hoje</span>', m.caixa >= 0 ? 'black' : 'red')}
-    </div>
+    ${kpiRow(m, c)}
     <div class="grid cols-2" style="grid-template-columns:1.4fr 1fr">
       <div class="card"><div class="card-title"><h2>O que precisa da sua atenção?</h2><a class="small" href="#/atencao">Ver tudo (${alerts.length})</a></div>
         ${alerts.length ? `<div class="list">${alerts.slice(0, 4).map(a => alertHTML(a, false)).join('')}</div>` : UI.empty('🟢', 'Tudo em ordem', 'Nada urgente por enquanto. Continue registrando vendas e contas para o Prumo vigiar por você.')}</div>
       <div class="stack">
-        <div class="card"><div class="card-title"><h2>Vendas no período</h2><span class="chip">${c.qtd} venda${c.qtd === 1 ? '' : 's'}</span></div>${UI.bars(E.salesSeries(S, p))}<p class="small muted" style="margin-top:8px">Ticket médio ${U.brl(c.ticket)} · Margem ${U.pct(c.margem, 0)}</p></div>
+        ${PE.perm.kpis[PE.perm.current()].includes('vendas') ? `<div class="card"><div class="card-title"><h2>Vendas no período</h2><span class="chip">${c.qtd} venda${c.qtd === 1 ? '' : 's'}</span></div>${UI.bars(E.salesSeries(S, p))}<p class="small muted" style="margin-top:8px">Ticket médio ${U.brl(c.ticket)} · Margem ${U.pct(c.margem, 0)}</p></div>` : ''}
         <div class="card"><div class="card-title"><h2>Para fazer agora</h2></div>${todo.length ? `<div class="list">${todo.map(x => `<a class="item clickable" href="#/${x.r}" style="text-decoration:none"><span class="chip ${x.cls}">${x.s}</span><span class="grow">${esc(x.t)}</span></a>`).join('')}</div>` : '<p class="muted small">Nenhuma pendência para hoje. 🎉</p>'}</div>
       </div></div>
     <div class="card"><div class="card-title"><h2>Ações rápidas</h2></div><div class="row wrap">
@@ -479,13 +485,13 @@
   let taskCat = 'todas';
   const TASK_CATS = ['vendas', 'financeiro', 'marketing', 'estoque', 'administrativo'];
   VIEWS.tarefas = () => {
-    const T = U.today(), all = S.tasks.filter(t => taskCat === 'todas' || t.category === taskCat);
+    const T = U.today(), all = S.tasks.filter(t => taskCat === 'todas' || (taskCat === 'minhas' ? t.assignee_id === PE.db.user?.id : t.category === taskCat));
     const open = all.filter(t => t.status !== 'concluida').sort((a, b) => (a.due_date || '9').localeCompare(b.due_date || '9'));
     const groups = [['Atrasadas', open.filter(t => t.due_date && t.due_date < T), 'red'], ['Hoje', open.filter(t => t.due_date === T), 'orange'], ['Próximas', open.filter(t => t.due_date > T), ''], ['Sem prazo', open.filter(t => !t.due_date), '']];
     const done = all.filter(t => t.status === 'concluida').slice(0, 8);
-    const item = t => `<div class="item"><button class="icon-btn" data-act="task-toggle" data-id="${t.id}" aria-label="Concluir" style="${t.status === 'concluida' ? 'background:var(--green);color:#fff;border-color:var(--green)' : ''}">${t.status === 'concluida' ? '✓' : ''}</button><div class="grow clickable" data-act="task-edit" data-id="${t.id}"><div class="title" style="${t.status === 'concluida' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(t.title)}</div><div class="sub">${esc(t.category)}${t.due_date ? ' · ' + U.fmtDate(t.due_date) : ''}${custName(t.customer_id) ? ' · ' + esc(custName(t.customer_id)) : ''}${t.recurrence && t.recurrence !== 'nenhuma' ? ' · 🔁 ' + t.recurrence : ''}</div></div>${UI.chip(t.priority, t.priority === 'alta' ? 'red' : t.priority === 'media' ? 'yellow' : '')}</div>`;
+    const item = t => `<div class="item"><button class="icon-btn" data-act="task-toggle" data-id="${t.id}" aria-label="Concluir" style="${t.status === 'concluida' ? 'background:var(--green);color:#fff;border-color:var(--green)' : ''}">${t.status === 'concluida' ? '✓' : ''}</button><div class="grow clickable" data-act="task-edit" data-id="${t.id}"><div class="title" style="${t.status === 'concluida' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(t.title)}</div><div class="sub">${esc(t.category)}${t.due_date ? ' · ' + U.fmtDate(t.due_date) : ''}${custName(t.customer_id) ? ' · ' + esc(custName(t.customer_id)) : ''}${t.assignee_id && memberOf(t.assignee_id) ? ' · 👤 ' + esc(memberName(memberOf(t.assignee_id))) : ''}${t.recurrence && t.recurrence !== 'nenhuma' ? ' · 🔁 ' + t.recurrence : ''}</div></div>${UI.chip(t.priority, t.priority === 'alta' ? 'red' : t.priority === 'media' ? 'yellow' : '')}</div>`;
     return `<div class="page-head"><h1>Tarefas</h1><button class="btn primary" data-act="task-new">${UI.ico('plus', 16)} Nova tarefa</button></div>
-      <div class="filters">${['todas', ...TASK_CATS].map(k => `<button class="pill ${taskCat === k ? 'active' : ''}" data-act="task-cat" data-k="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
+      <div class="filters">${['todas', ...(S.members.length > 1 ? ['minhas'] : []), ...TASK_CATS].map(k => `<button class="pill ${taskCat === k ? 'active' : ''}" data-act="task-cat" data-k="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
       ${open.length ? groups.filter(g => g[1].length).map(([l, arr, cls]) => `<div class="stack" style="gap:8px"><div class="row"><h3>${l}</h3>${UI.chip(arr.length, cls)}</div><div class="list">${arr.map(item).join('')}</div></div>`).join('') : `<div class="card">${UI.empty('✅', 'Nenhuma tarefa aberta', 'Crie tarefas para não esquecer cobranças, reposições e follow-ups.', '<button class="btn primary" data-act="task-new">Nova tarefa</button>')}</div>`}
       ${done.length ? `<div class="stack" style="gap:8px"><h3>Concluídas recentemente</h3><div class="list">${done.map(item).join('')}</div></div>` : ''}`;
   };
@@ -493,10 +499,11 @@
   const taskFields = () => [
     { name: 'title', label: 'Tarefa', required: true, full: true }, { name: 'category', label: 'Categoria', type: 'select', options: TASK_CATS }, { name: 'priority', label: 'Prioridade', type: 'select', options: [['alta', 'Alta'], ['media', 'Média'], ['baixa', 'Baixa']] },
     { name: 'due_date', label: 'Prazo', type: 'date' }, { name: 'recurrence', label: 'Repete', type: 'select', options: [['nenhuma', 'Não repete'], ['diaria', 'Todo dia'], ['semanal', 'Toda semana'], ['mensal', 'Todo mês']] },
-    { name: 'customer_id', label: 'Cliente (opcional)', type: 'select', options: [['', '—'], ...S.customers.map(c => [c.id, c.name])], full: true }
+    { name: 'assignee_id', label: 'Responsável', type: 'select', options: [['', '— ninguém —'], ...S.members.map(m => [m.user_id, memberName(m)])] },
+    { name: 'customer_id', label: 'Cliente (opcional)', type: 'select', options: [['', '—'], ...S.customers.map(c => [c.id, c.name])] }
   ];
-  A['task-new'] = () => UI.form({ title: 'Nova tarefa', fields: taskFields(), values: { category: 'administrativo', priority: 'media', recurrence: 'nenhuma', due_date: U.today() }, onSubmit: async v => { await PE.db.insert('tasks', { ...v, customer_id: v.customer_id || null, status: 'aberta' }); UI.closeModal(); refresh(); } });
-  A['task-edit'] = d => { const t = S.tasks.find(x => x.id === d.id); UI.form({ title: 'Editar tarefa', fields: taskFields(), values: t, extraFooter: `<button type="button" class="btn danger" data-act="task-del" data-id="${t.id}" style="margin-right:auto">Excluir</button>`, onSubmit: async v => { await PE.db.update('tasks', t.id, { ...v, customer_id: v.customer_id || null }); UI.closeModal(); refresh(); } }); };
+  A['task-new'] = () => UI.form({ title: 'Nova tarefa', fields: taskFields(), values: { category: 'administrativo', priority: 'media', recurrence: 'nenhuma', due_date: U.today() }, onSubmit: async v => { await PE.db.insert('tasks', { ...v, customer_id: v.customer_id || null, assignee_id: v.assignee_id || null, status: 'aberta' }); UI.closeModal(); refresh(); } });
+  A['task-edit'] = d => { const t = S.tasks.find(x => x.id === d.id); UI.form({ title: 'Editar tarefa', fields: taskFields(), values: t, extraFooter: `<button type="button" class="btn danger" data-act="task-del" data-id="${t.id}" style="margin-right:auto">Excluir</button>`, onSubmit: async v => { await PE.db.update('tasks', t.id, { ...v, customer_id: v.customer_id || null, assignee_id: v.assignee_id || null }); UI.closeModal(); refresh(); } }); };
   A['task-del'] = async d => { await PE.db.remove('tasks', d.id); UI.closeModal(); refresh(); };
   A['task-toggle'] = async d => {
     const t = S.tasks.find(x => x.id === d.id); const done = t.status !== 'concluida';
@@ -678,6 +685,95 @@
   A['camp-status'] = async d => { const c = S.campaigns.find(x => x.id === d.id); await PE.db.update('campaigns', c.id, { status: c.status === 'encerrada' ? 'ativa' : 'encerrada' }); UI.closeModal(); refresh(); UI.toast(c.status === 'encerrada' ? 'Campanha reativada.' : 'Campanha encerrada.'); };
   A['camp-del'] = d => { UI.closeModal(); UI.confirm('Excluir esta campanha e o histórico de envios dela?', async () => { for (const n of S.notifications.filter(n => n.alert_key.startsWith(`cp:${d.id}:`))) await PE.db.remove('notifications', n.id); await PE.db.remove('campaigns', d.id); refresh(); UI.toast('Campanha excluída.'); }); };
 
+  /* ---------- EQUIPE E PERMISSÕES ---------- */
+  const roleOpts = Object.entries(PE.perm.roles).map(([k, r]) => [k, r.label]);
+  const roleChip = r => UI.chip(PE.perm.roles[r]?.label || r, { administrador: 'black', gerente: 'orange', vendedor: 'blue', financeiro: 'green' }[r] || '');
+  const memberName = m => m.name || m.email || 'Usuário';
+  const memberOf = uid => S.members.find(m => m.user_id === uid);
+  const appLink = () => location.origin + location.pathname;
+
+  VIEWS.equipe = () => {
+    const team = E.team(S), invites = S.invites.filter(i => i.status === 'pending'), manage = PE.perm.can('team.manage'), me = PE.db.user?.id;
+    const totalRev = team.reduce((s, t) => s + t.rev, 0), owner = S.company.owner_id;
+    const roles = Object.keys(PE.perm.roles), mods = Object.keys(PE.perm.moduleLabels);
+    return `<div class="page-head"><div><h1>Equipe e permissões</h1><p class="muted">Cada pessoa vê e faz só o que o perfil dela permite.</p></div>${manage ? `<button class="btn primary" data-act="team-invite">${UI.ico('plus', 16)} Convidar pessoa</button>` : ''}</div>
+      <div class="grid cols-5" style="grid-template-columns:repeat(3,minmax(0,1fr))">${kpi('Pessoas na equipe', S.members.length, '', 'orange')}${kpi('Convites pendentes', invites.length, '', 'black')}${kpi('Vendas da equipe no mês', U.brl0(totalRev), '', 'green')}</div>
+      ${PE.db.mode === 'demo' ? `<div class="alert info"><span class="dot"></span><div><div class="a-title">Modo demonstração</div><div class="a-detail">Use o seletor “Ver como” no topo da tela para testar o que cada perfil enxerga. Com o Supabase conectado, as permissões valem de verdade no banco.</div></div></div>` : ''}
+      <div class="stack" style="gap:8px"><h3>Pessoas</h3><div class="list">${team.map(t => {
+        const m = t.m, isOwner = m.user_id === owner, isMe = m.user_id === me;
+        return `<div class="item" style="align-items:flex-start"><div class="avatar ${isOwner ? 'orange' : ''}">${esc(U.initials(memberName(m)))}</div><div class="grow"><div class="title">${esc(memberName(m))} ${roleChip(m.role)}${isMe ? ' ' + UI.chip('Você') : ''}${isOwner ? ' ' + UI.chip('Dono') : ''}</div><div class="sub">${esc(m.email || '')}</div>
+          <div class="small muted" style="margin-top:6px">Mês: ${t.count} venda${t.count === 1 ? '' : 's'} · ${U.brl0(t.rev)} · Tarefas: ${t.done30} concluída${t.done30 === 1 ? '' : 's'} (30d), ${t.open} aberta${t.open === 1 ? '' : 's'}${t.late ? `, <span class="down">${t.late} atrasada${t.late === 1 ? '' : 's'}</span>` : ''}</div>
+          ${t.goal ? `<div style="margin-top:8px"><div class="progress"><span style="width:${Math.min(100, t.pct)}%"></span></div><div class="small muted" style="margin-top:4px">Meta ${U.brl0(t.goal)} · ${U.pct(t.pct, 0)} atingido</div></div>` : ''}</div>
+          ${manage ? `<div class="row"><button class="btn sm ghost" data-act="team-edit" data-id="${m.id}">Editar</button>${!isOwner && !isMe ? `<button class="btn sm danger" data-act="team-remove" data-id="${m.id}">Remover</button>` : ''}</div>` : ''}</div>`;
+      }).join('')}</div></div>
+      ${invites.length ? `<div class="stack" style="gap:8px"><h3>Convites pendentes</h3><div class="list">${invites.map(i => `<div class="item"><div class="avatar">${UI.ico('chat', 18)}</div><div class="grow"><div class="title">${esc(i.email)} ${roleChip(i.role)}</div><div class="sub">Entra na equipe quando criar conta ou entrar com este e-mail</div></div>${manage ? `<div class="row"><button class="btn sm soft" data-act="invite-share" data-id="${i.id}">Enviar convite</button><button class="btn sm ghost" data-act="invite-revoke" data-id="${i.id}">Revogar</button></div>` : ''}</div>`).join('')}</div></div>` : ''}
+      <div class="card"><div class="card-title"><h2>O que cada perfil acessa</h2></div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:14px">${roles.map(r => `<div class="card flat" style="padding:12px"><div>${roleChip(r)}</div><p class="small muted" style="margin-top:6px">${esc(PE.perm.roles[r].desc)}</p></div>`).join('')}</div>
+        <div class="table-wrap"><table><thead><tr><th>Área</th>${roles.map(r => `<th>${esc(PE.perm.roles[r].label)}</th>`).join('')}</tr></thead><tbody>${mods.map(md => `<tr><td>${esc(PE.perm.moduleLabels[md])}</td>${roles.map(r => `<td>${PE.perm.modules[r].includes(md) ? '<span class="up">✓</span>' : '<span class="muted">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  };
+
+  A['team-invite'] = () => UI.form({ title: 'Convidar pessoa', submitLabel: 'Criar convite', values: { role: 'vendedor' },
+    fields: [{ name: 'email', label: 'E-mail da pessoa', type: 'email', required: true, full: true, hint: 'Ela precisa criar conta ou entrar com este mesmo e-mail.' }, { name: 'role', label: 'Perfil', type: 'select', options: roleOpts, full: true }],
+    onSubmit: async v => {
+      const email = v.email.toLowerCase();
+      if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Informe um e-mail válido.');
+      if (S.members.some(m => (m.email || '').toLowerCase() === email)) throw new Error('Essa pessoa já faz parte da equipe.');
+      if (S.invites.some(i => i.status === 'pending' && i.email.toLowerCase() === email)) throw new Error('Já existe um convite pendente para este e-mail.');
+      const inv = await PE.db.insert('invites', { email, role: v.role, status: 'pending' });
+      UI.closeModal(); refresh(); A['invite-share']({ id: inv.id });
+    } });
+  A['invite-share'] = d => {
+    const i = S.invites.find(x => x.id === d.id); if (!i) return;
+    const msg = `Oi! Você foi convidado(a) para a equipe da ${S.company.name} no Prumo, como ${PE.perm.roles[i.role].label}. Acesse ${appLink()} e crie sua conta (ou entre) usando este e-mail: ${i.email}`;
+    UI.modal({ title: 'Convite criado', body: `<p class="muted">Quando <strong>${esc(i.email)}</strong> criar conta ou entrar com esse e-mail, entra direto na sua empresa como <strong>${esc(PE.perm.roles[i.role].label)}</strong>. Envie a mensagem abaixo:</p>
+      <div class="field"><textarea class="input" id="inv-msg" rows="4">${esc(msg)}</textarea></div>
+      <div class="modal-foot"><button class="btn ghost" data-act="close-modal">Fechar</button><button class="btn ghost" data-act="copy-el" data-el="inv-msg">Copiar</button><button class="btn primary" id="inv-wa">Enviar por WhatsApp</button></div>`,
+      onMount: m => { m.querySelector('#inv-wa').onclick = () => window.open(`https://wa.me/?text=${encodeURIComponent(m.querySelector('#inv-msg').value)}`, '_blank', 'noopener'); } });
+  };
+  A['invite-revoke'] = d => UI.confirm('Revogar este convite? A pessoa não conseguirá mais entrar por ele.', async () => { await PE.db.update('invites', d.id, { status: 'revoked' }); refresh(); UI.toast('Convite revogado.'); }, 'Revogar');
+  A['team-edit'] = d => {
+    const m = S.members.find(x => x.id === d.id), locked = m.user_id === S.company.owner_id || m.user_id === PE.db.user?.id;
+    const fields = [{ name: 'name', label: 'Nome', full: true }, ...(locked ? [] : [{ name: 'role', label: 'Perfil', type: 'select', options: roleOpts }]), { name: 'monthly_goal', label: 'Meta de vendas por mês (R$)', type: 'number', step: '0.01', min: 0, full: true, hint: 'Aparece como barra de progresso nesta tela.' }];
+    UI.form({ title: `Editar — ${memberName(m)}`, fields, values: m, onSubmit: async v => {
+      const patch = { name: v.name || m.name, monthly_goal: v.monthly_goal || null }; if (!locked && v.role) patch.role = v.role;
+      await PE.db.update('members', m.id, patch); UI.closeModal(); refresh(); UI.toast('Pessoa atualizada.');
+    } });
+    if (locked) document.querySelector('.modal-body')?.insertAdjacentHTML('afterbegin', '<p class="small muted">O perfil do dono da empresa e o seu próprio perfil não podem ser alterados aqui.</p>');
+  };
+  A['team-remove'] = d => { const m = S.members.find(x => x.id === d.id); UI.confirm(`Remover ${memberName(m)} da equipe? A pessoa perde o acesso à empresa.`, async () => { await PE.db.remove('members', m.id); refresh(); UI.toast('Pessoa removida da equipe.'); }, 'Remover'); };
+
+  /* ---------- PERMISSÕES NA INTERFACE ---------- */
+  // Ação da tela -> permissão exigida. O banco também impõe (RLS); aqui só evitamos botões que não funcionariam.
+  const PERM_ACTS = {
+    'sale-new': 'sale.create', 'sale-cancel': 'sale.cancel', 'sale-receive': 'sale.receive',
+    'cust-new': 'customer.write', 'cust-edit': 'customer.write', 'cust-del': 'customer.delete', 'cust-followup': 'customer.write',
+    'opp-new': 'opp.write', 'opp-edit': 'opp.write', 'opp-move': 'opp.write', 'opp-del': 'opp.write', 'opp-lost': 'opp.write',
+    'prod-new': 'product.write', 'prod-edit': 'product.write', 'prod-del': 'product.write', 'stock-adjust': 'stock.adjust', 'price-apply': 'product.write',
+    'tx-new': 'finance.write', 'tx-edit': 'finance.write', 'tx-del': 'finance.write', 'tx-settle': 'finance.write',
+    'camp-new': 'campaign.write', 'camp-edit': 'campaign.write', 'camp-status': 'campaign.write', 'camp-del': 'campaign.write', 'camp-save-text': 'campaign.write',
+    'team-invite': 'team.manage', 'team-edit': 'team.manage', 'team-remove': 'team.manage', 'invite-revoke': 'team.manage', 'invite-share': 'team.manage'
+  };
+  Object.entries(PERM_ACTS).forEach(([act, perm]) => {
+    const fn = A[act]; if (!fn) return;
+    A[act] = (d, el) => PE.perm.can(perm) ? fn(d, el) : UI.toast('Seu perfil não tem permissão para isso.', 'err');
+  });
+  /** Remove da tela o que o perfil atual não pode usar. */
+  function applyPerms(scope) {
+    scope.querySelectorAll('[data-act]').forEach(el => {
+      const perm = PERM_ACTS[el.dataset.act]; if (!perm || PE.perm.can(perm)) return;
+      if (el.classList.contains('item')) { el.removeAttribute('data-act'); el.classList.remove('clickable'); } else el.remove();
+    });
+    scope.querySelectorAll('a[href^="#/"]').forEach(a => {
+      const mod = a.getAttribute('href').slice(2).split('?')[0]; if (!PE.perm.moduleLabels[mod] || PE.perm.canModule(mod)) return;
+      if (a.classList.contains('item')) { a.removeAttribute('href'); a.classList.remove('clickable'); } else a.remove();
+    });
+  }
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1 && n.classList?.contains('overlay')) applyPerms(n); }))).observe(document.body, { childList: true });
+  document.addEventListener('change', e => {
+    if (e.target.dataset?.actChange !== 'demo-role') return;
+    localStorage.setItem('prumo_demo_role', e.target.value); shell(); UI.toast(`Visualizando como ${PE.perm.roles[e.target.value].label}.`);
+  });
+
   /* ---------- CONFIGURAÇÕES ---------- */
   VIEWS.configuracoes = () => {
     const c = S.company, cloud = PE.db.mode === 'cloud';
@@ -693,7 +789,7 @@
         <div class="card stack"><div class="card-title"><h2>Conta e dados</h2></div><p class="small muted">Conectado como <strong>${esc(PE.db.user?.email || '')}</strong> · ${cloud ? 'Supabase (nuvem)' : 'modo demonstração (dados só neste navegador)'}</p>
           ${cloud ? '' : `<div class="alert info"><span class="dot"></span><div class="a-detail">Para salvar na nuvem: rode <code>supabase/schema.sql</code> no SQL Editor e cole a <em>anon key</em> em <code>js/config.js</code>.</div></div>`}
           <div class="row wrap"><button class="btn ghost" data-act="export-data">Exportar meus dados (LGPD)</button><button class="btn ghost" data-act="load-sample">Carregar dados de exemplo</button>${cloud ? '' : '<button class="btn danger" data-act="reset-demo">Apagar dados de demonstração</button>'}<button class="btn ghost" data-act="logout">Sair</button></div></div>
-        <div class="card stack"><div class="card-title"><h2>Equipe</h2>${UI.chip('Em breve')}</div><p class="small muted">Perfis prontos no banco: Administrador, Gerente, Vendedor, Financeiro e Operacional — com permissões por papel já aplicadas (por exemplo, só Administrador, Gerente e Financeiro veem o financeiro).</p></div></div></div>`;
+        <div class="card stack"><div class="card-title"><h2>Equipe</h2></div><p class="small muted">Convide pessoas, defina perfis e metas em <a href="#/equipe"><u>Equipe e permissões</u></a>.</p></div></div></div>`;
   };
   document.addEventListener('submit', async e => {
     if (e.target.id !== 'co-form') return; e.preventDefault(); const f = e.target;
