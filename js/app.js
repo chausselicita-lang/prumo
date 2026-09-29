@@ -7,7 +7,7 @@
   const PAY = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Boleto', 'Transferência', 'Fiado'];
   const STAGES = [['novo', 'Novo lead'], ['contato', 'Contato'], ['negociacao', 'Negociação'], ['proposta', 'Proposta'], ['venda', 'Venda'], ['posvenda', 'Pós-venda']];
   const NAV = [
-    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes WhatsApp', 'chat'],
+    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes e oportunidades', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes WhatsApp', 'chat'], ['marketing', 'Marketing', 'megaphone'],
     ['financeiro', 'Financeiro', 'wallet'], ['produtos', 'Produtos', 'box'], ['precificacao', 'Precificação', 'calc'],
     ['tarefas', 'Tarefas', 'check'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['configuracoes', 'Configurações', 'gear']
   ];
@@ -569,6 +569,114 @@
     document.querySelector('.modal-body').insertAdjacentHTML('afterbegin', '<p class="small muted">Variáveis: {nome} {empresa} {valor} {vencimento} {titulo} {produto} {dias}. Elas são trocadas pelos dados de cada cliente.</p>');
   };
   A['wa-tpl-reset'] = async () => { const { wa_templates, ...rest } = S.company.settings || {}; await PE.db.saveCompany({ settings: rest }); UI.closeModal(); refresh(); UI.toast('Mensagens restauradas.'); };
+
+  /* ---------- MARKETING E CAMPANHAS ---------- */
+  const MK = E.mk;
+  tabs.marketing = 'campanhas';
+  const campStatusChip = c => UI.chip(MK.statusMeta[c.status]?.label || c.status, MK.statusMeta[c.status]?.cls || '');
+  const firstOf = n => String(n || '').trim().split(/\s+/)[0] || 'tudo bem';
+  const personalize = (msg, c) => String(msg).replace(/\{nome\}/g, firstOf(c.name));
+
+  VIEWS.marketing = () => {
+    const tab = tabs.marketing;
+    const head = `<div class="page-head"><div><h1>Marketing</h1><p class="muted">Informe produto, preço, público e objetivo. O Prumo prepara a campanha.</p></div><button class="btn primary" data-act="camp-new">${UI.ico('plus', 16)} Criar campanha</button></div>
+      <div class="filters">${[['campanhas', 'Campanhas'], ['agenda', 'Agenda de datas'], ['local', 'Marketing local']].map(([k, l]) => `<button class="pill ${tab === k ? 'active' : ''}" data-act="tab" data-v="marketing" data-t="${k}">${l}</button>`).join('')}</div>`;
+
+    if (tab === 'agenda') {
+      const dates = MK.upcomingDates(150);
+      const camps = S.campaigns.filter(c => c.starts_at && c.status !== 'encerrada');
+      const ev = [...dates.map(d => ({ date: d.date, kind: 'date', d })), ...camps.map(c => ({ date: c.starts_at, kind: 'camp', c }))].sort((a, b) => a.date.localeCompare(b.date));
+      return head + (ev.length ? `<div class="list">${ev.map(e => e.kind === 'camp'
+        ? `<div class="item clickable" data-act="camp-open" data-id="${e.c.id}"><div class="avatar orange">${UI.ico('megaphone', 18)}</div><div class="grow"><div class="title">${esc(e.c.name)}</div><div class="sub">Campanha · ${U.fmtDate(e.c.starts_at)}${e.c.ends_at ? ' a ' + U.fmtDate(e.c.ends_at) : ''}</div></div>${campStatusChip(e.c)}</div>`
+        : `<div class="item"><div class="avatar">${UI.ico('tag', 18)}</div><div class="grow"><div class="title">${esc(e.d.name)} ${UI.chip(e.d.days === 0 ? 'hoje' : `em ${e.d.days} dias`, e.d.days <= 21 ? 'orange' : '')}</div><div class="sub">${U.fmtDate(e.d.date)} · ${esc(e.d.tip)}</div></div><button class="btn sm soft" data-act="camp-new" data-occasion="${esc(e.d.name)}" data-date="${e.d.date}">Criar campanha</button></div>`).join('')}</div>`
+        : `<div class="card">${UI.empty('📅', 'Nada por aqui', 'Nenhuma data comercial nos próximos meses.')}</div>`);
+    }
+
+    if (tab === 'local') {
+      const cities = {}; S.customers.forEach(c => { if (c.city) cities[c.city] = (cities[c.city] || 0) + 1; });
+      const cityRows = Object.entries(cities).sort((a, b) => b[1] - a[1]);
+      const recentes = MK.audience(S, 'recentes').length;
+      return head + `<div class="grid cols-2">
+        <div class="card stack"><div class="card-title"><h2>Campanhas por cidade</h2></div>${cityRows.length ? `<div class="list">${cityRows.map(([c, n]) => `<div class="item"><div class="avatar">${UI.ico('users', 18)}</div><div class="grow"><div class="title">${esc(c)}</div><div class="sub">${n} cliente${n > 1 ? 's' : ''}</div></div><button class="btn sm soft" data-act="camp-new" data-audience="city:${esc(c)}" data-objective="promocao">Criar campanha</button></div>`).join('')}</div>` : '<p class="muted small">Cadastre a cidade dos seus clientes para criar ofertas locais.</p>'}</div>
+        <div class="stack"><div class="card stack"><div class="card-title"><h2>Coletar avaliações</h2></div><p class="small muted">${recentes} cliente${recentes === 1 ? '' : 's'} comprou nos últimos 30 dias. Peça uma avaliação enquanto a experiência está fresca.</p><button class="btn primary" data-act="camp-new" data-objective="avaliacoes" data-audience="recentes">Pedir avaliações</button></div>
+        <div class="card stack"><div class="card-title"><h2>Google Meu Negócio</h2>${UI.chip('Em breve')}</div><p class="small muted">Integração para responder avaliações e publicar ofertas direto no Google está planejada. Por enquanto, cole o link de avaliação ao criar a campanha de avaliações.</p></div></div></div>`;
+    }
+
+    // Campanhas + sugestões
+    const idle = S.products.map(p => ({ p, st: E.productStats(S, p) })).filter(x => x.st.idle).sort((a, b) => b.st.stockValue - a.st.stockValue)[0];
+    const sumidos = MK.audience(S, 'sumidos').length, aniv = MK.audience(S, 'aniversariantes').length, nextDate = MK.upcomingDates(45)[0];
+    const sug = [
+      idle && { t: `Girar ${idle.p.name}`, d: `${U.brl0(idle.st.stockValue)} parados em estoque há 90+ dias.`, a: `data-objective="estoque" data-product="${idle.p.id}" data-audience="ativos"` },
+      sumidos && { t: `Recuperar ${sumidos} cliente${sumidos > 1 ? 's' : ''}`, d: 'Sem comprar há 60 dias ou mais.', a: 'data-objective="recuperacao" data-audience="sumidos"' },
+      aniv && { t: `${aniv} aniversariante${aniv > 1 ? 's' : ''} no mês`, d: 'Um presente aproxima e vende.', a: 'data-objective="aniversario" data-audience="aniversariantes"' },
+      nextDate && { t: `${nextDate.name} em ${nextDate.days} dias`, d: nextDate.tip, a: `data-occasion="${esc(nextDate.name)}" data-date="${nextDate.date}"` }
+    ].filter(Boolean).slice(0, 3);
+    const camps = [...S.campaigns].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    return head + (sug.length ? `<div class="stack" style="gap:8px"><h3>Sugestões para você</h3><div class="grid cols-3">${sug.map(s => `<div class="card flat stack" style="gap:6px"><strong>${esc(s.t)}</strong><p class="small muted">${esc(s.d)}</p><button class="btn sm soft" data-act="camp-new" ${s.a}>Criar campanha</button></div>`).join('')}</div></div>` : '')
+      + (camps.length ? `<div class="stack" style="gap:8px"><h3>Suas campanhas</h3><div class="list">${camps.map(c => { const r = MK.results(S, c), size = MK.audience(S, c.audience).length; return `<div class="item clickable" data-act="camp-open" data-id="${c.id}"><div class="avatar orange">${UI.ico('megaphone', 18)}</div><div class="grow"><div class="title">${esc(c.name)}</div><div class="sub">${esc(MK.audienceLabel(S, c.audience))} (${size}) · ${esc(c.channel || 'WhatsApp')}${c.ends_at ? ' · até ' + U.fmtShort(c.ends_at) : ''}</div></div><div class="right">${campStatusChip(c)}<div class="small muted" style="margin-top:4px">${r.sent}/${size} contatos · ${r.converted} compraram</div></div></div>`; }).join('')}</div></div>`
+        : `<div class="card">${UI.empty('📣', 'Nenhuma campanha ainda', 'Crie a primeira: escolha o produto, o preço e o público. A mensagem sai pronta.', '<button class="btn primary" data-act="camp-new">Criar campanha</button>')}</div>`);
+  };
+
+  A['camp-new'] = d => {
+    const prods = S.products.filter(p => p.active !== false);
+    const fields = [
+      { name: 'objective', label: 'Objetivo', type: 'select', options: Object.entries(MK.objectives).map(([k, o]) => [k, `${o.label} — ${o.hint}`]), full: true },
+      { name: 'product_id', label: 'Produto (opcional)', type: 'select', options: [['', '— sem produto —'], ...prods.map(p => [p.id, `${p.name} — ${U.brl(p.price)}`])], full: true },
+      { name: 'price', label: 'Preço da oferta (R$)', type: 'number', step: '0.01', min: 0 }, { name: 'audience', label: 'Público', type: 'select', options: MK.audienceOptions(S) },
+      { name: 'channel', label: 'Canal principal', type: 'select', options: MK.channels }, { name: 'starts_at', label: 'Início', type: 'date', required: true }, { name: 'ends_at', label: 'Fim', type: 'date' },
+      { name: 'link', label: 'Link de avaliação (só para “Pedir avaliações”)', placeholder: 'https://g.page/...', full: true }
+    ];
+    const start = d.date ? (U.addDays(d.date, -7) < U.today() ? U.today() : U.addDays(d.date, -7)) : U.today();
+    UI.form({ title: d.occasion ? `Campanha — ${d.occasion}` : 'Criar campanha', fields, submitLabel: 'Preparar campanha',
+      values: { objective: d.objective || 'promocao', product_id: d.product || '', audience: d.audience || 'todos', channel: 'WhatsApp', starts_at: start, ends_at: d.date || U.addDays(start, 7) },
+      onSubmit: async v => {
+        const product = S.products.find(p => p.id === v.product_id) || null;
+        const gen = MK.generate(S, { objective: v.objective, product, price: v.price, audience: v.audience, channel: v.channel, starts: v.starts_at, ends: v.ends_at, link: v.link, occasion: d.occasion });
+        const camp = await PE.db.insert('campaigns', { name: gen.name, objective: v.objective, audience: v.audience, product_id: product?.id || null, price: v.price || null, message: gen.message, caption: gen.caption, channel: v.channel, status: 'ativa', starts_at: v.starts_at, ends_at: v.ends_at || null });
+        UI.closeModal(); tabs.marketing = 'campanhas'; if (view !== 'marketing') location.hash = '#/marketing'; else refresh();
+        UI.toast('Campanha preparada!'); A['camp-open']({ id: camp.id });
+      } });
+    const form = document.getElementById('pe-form'), sel = form.elements.product_id, price = form.elements.price;
+    const hint = document.createElement('span'); hint.className = 'hint'; hint.id = 'mk-hint'; price.parentElement.appendChild(hint);
+    const showMargin = () => { const p = S.products.find(x => x.id === sel.value), m = MK.margin(p, price.value); hint.style.color = ''; hint.textContent = m ? `Margem nesta oferta: ${U.pct(m.pct, 0)} (lucro de ${U.brl(m.profit)} por unidade)${m.profit <= 0 ? ' — PREJUÍZO' : m.pct < 10 ? ' — margem muito baixa' : ''}` : ''; if (m && m.profit <= 0) hint.style.color = 'var(--red)'; };
+    sel.addEventListener('change', () => { const p = S.products.find(x => x.id === sel.value); if (p) price.value = form.elements.objective.value === 'lancamento' ? p.price : MK.promoPrice(S, p); showMargin(); });
+    price.addEventListener('input', showMargin);
+    if (d.product) { const p = S.products.find(x => x.id === d.product); if (p) { price.value = MK.promoPrice(S, p); showMargin(); } }
+  };
+
+  A['camp-open'] = d => {
+    const c = S.campaigns.find(x => x.id === d.id); if (!c) return;
+    const product = S.products.find(p => p.id === c.product_id), aud = MK.audience(S, c.audience), m = MK.margin(product, c.price);
+    const kpis = () => { const r = MK.results(S, c); return `${kpi('Contatos enviados', `${r.sent}/${aud.length}`, '', 'orange')}${kpi('Contatados que compraram', r.converted, r.converted ? `<span class="up">${U.brl0(r.convValue)}</span>` : '<span class="muted">após o contato</span>', 'green')}${product ? kpi('Vendas do produto', U.brl0(r.prodRev), `<span class="muted">${r.prodQty} un. no período</span>`, 'black') : ''}`; };
+    const audRow = (cu, sent) => `<div class="item" data-cust-row="${cu.id}"><div class="avatar">${esc(U.initials(cu.name))}</div><div class="grow"><div class="title">${esc(cu.name)}</div><div class="sub">${esc(cu.city || '')}${wa(cu) ? '' : ' · sem WhatsApp'}</div></div>${sent ? UI.chip('Enviado', 'green') : wa(cu) ? `<button class="btn sm primary" data-act="camp-send" data-camp="${c.id}" data-cust="${cu.id}">WhatsApp</button>` : UI.chip('Sem telefone', 'yellow')}</div>`;
+    const r0 = MK.results(S, c);
+    UI.modal({ title: c.name, wide: true, body: `<div class="row wrap">${campStatusChip(c)}${UI.chip(MK.objectives[c.objective]?.label || c.objective)}${UI.chip(c.channel || 'WhatsApp')}${UI.chip(MK.audienceLabel(S, c.audience) + ` (${aud.length})`)}${c.ends_at ? UI.chip('até ' + U.fmtShort(c.ends_at)) : ''}</div>
+      ${m ? `<div class="alert ${m.profit <= 0 ? 'urgent' : m.pct < Number(S.company.target_margin || 30) / 2 ? 'attention' : 'opportunity'}"><span class="dot"></span><div><div class="a-title">Oferta de ${esc(product.name)} por ${U.brl(c.price)}: margem de ${U.pct(m.pct, 0)}</div><div class="a-detail">Lucro de ${U.brl(m.profit)} por unidade${m.profit <= 0 ? '. Você perde dinheiro em cada venda: reveja o preço.' : m.pct < 10 ? '. Margem apertada: use por tempo curto.' : '.'}</div></div></div>` : ''}
+      <div class="grid cols-3 keep" id="camp-kpis">${kpis()}</div>
+      <div class="field"><label>Mensagem de WhatsApp (use {nome} para o nome do cliente)</label><textarea class="input" id="camp-msg" rows="5">${esc(c.message || '')}</textarea></div>
+      <div class="field"><label>Legenda para Instagram / Facebook</label><textarea class="input" id="camp-cap" rows="6">${esc(c.caption || '')}</textarea></div>
+      <div class="row wrap"><button class="btn primary sm" data-act="camp-save-text" data-id="${c.id}">Salvar textos</button><button class="btn ghost sm" data-act="copy-el" data-el="camp-msg">Copiar mensagem</button><button class="btn ghost sm" data-act="copy-el" data-el="camp-cap">Copiar legenda</button></div>
+      <div><div class="row between"><h3>Público (${aud.length})</h3><span class="small muted">Você revisa e envia cada mensagem</span></div><div class="list" style="margin-top:8px;max-height:320px;overflow-y:auto">${aud.length ? aud.slice(0, 100).map(cu => audRow(cu, r0.sentIds.has(cu.id))).join('') : '<p class="muted small">Nenhum cliente neste público ainda.</p>'}</div></div>
+      <div class="row wrap"><button class="btn sm ghost" data-act="camp-edit" data-id="${c.id}">Editar dados</button><button class="btn sm ghost" data-act="camp-status" data-id="${c.id}">${c.status === 'encerrada' ? 'Reativar' : 'Encerrar campanha'}</button><button class="btn sm danger" data-act="camp-del" data-id="${c.id}">Excluir</button></div>` });
+  };
+  A['copy-el'] = async d => { try { await navigator.clipboard.writeText(document.getElementById(d.el).value); UI.toast('Copiado.'); } catch { UI.toast('Não foi possível copiar.', 'err'); } };
+  A['camp-save-text'] = async d => { await PE.db.update('campaigns', d.id, { message: document.getElementById('camp-msg').value, caption: document.getElementById('camp-cap').value }); UI.toast('Textos salvos.'); };
+  A['camp-send'] = d => {
+    const c = S.campaigns.find(x => x.id === d.camp), cu = S.customers.find(x => x.id === d.cust), link = wa(cu); if (!link) return;
+    const msg = personalize(document.getElementById('camp-msg')?.value || c.message, cu);
+    window.open(`${link}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+    return PE.actions.mark(`cp:${c.id}:${cu.id}`, 365).then(() => {
+      const row = document.querySelector(`[data-cust-row="${cu.id}"]`); if (row) row.querySelector('.btn')?.replaceWith(Object.assign(document.createElement('span'), { className: 'chip green', textContent: 'Enviado' }));
+      const k = document.getElementById('camp-kpis'); if (k) { const aud = MK.audience(S, c.audience), product = S.products.find(p => p.id === c.product_id), r = MK.results(S, c); k.innerHTML = `${kpi('Contatos enviados', `${r.sent}/${aud.length}`, '', 'orange')}${kpi('Contatados que compraram', r.converted, '<span class="muted">após o contato</span>', 'green')}${product ? kpi('Vendas do produto', U.brl0(r.prodRev), `<span class="muted">${r.prodQty} un. no período</span>`, 'black') : ''}`; }
+    });
+  };
+  A['camp-edit'] = d => {
+    const c = S.campaigns.find(x => x.id === d.id); UI.closeModal();
+    UI.form({ title: 'Editar campanha', values: c, fields: [{ name: 'name', label: 'Nome', required: true, full: true }, { name: 'price', label: 'Preço da oferta (R$)', type: 'number', step: '0.01' }, { name: 'channel', label: 'Canal', type: 'select', options: MK.channels }, { name: 'starts_at', label: 'Início', type: 'date' }, { name: 'ends_at', label: 'Fim', type: 'date' }, { name: 'status', label: 'Situação', type: 'select', options: [['rascunho', 'Rascunho'], ['ativa', 'Ativa'], ['encerrada', 'Encerrada']] }],
+      onSubmit: async v => { await PE.db.update('campaigns', c.id, { ...v, price: v.price || null }); UI.closeModal(); refresh(); A['camp-open']({ id: c.id }); } });
+  };
+  A['camp-status'] = async d => { const c = S.campaigns.find(x => x.id === d.id); await PE.db.update('campaigns', c.id, { status: c.status === 'encerrada' ? 'ativa' : 'encerrada' }); UI.closeModal(); refresh(); UI.toast(c.status === 'encerrada' ? 'Campanha reativada.' : 'Campanha encerrada.'); };
+  A['camp-del'] = d => { UI.closeModal(); UI.confirm('Excluir esta campanha e o histórico de envios dela?', async () => { for (const n of S.notifications.filter(n => n.alert_key.startsWith(`cp:${d.id}:`))) await PE.db.remove('notifications', n.id); await PE.db.remove('campaigns', d.id); refresh(); UI.toast('Campanha excluída.'); }); };
 
   /* ---------- CONFIGURAÇÕES ---------- */
   VIEWS.configuracoes = () => {

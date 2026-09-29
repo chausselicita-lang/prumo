@@ -173,6 +173,9 @@ PE.engine = {
     const rem = this.reminders(S);
     if (rem.length) push('opportunity', 'wa-reminders', `${rem.length} ${rem.length > 1 ? 'clientes para contatar' : 'cliente para contatar'} hoje no WhatsApp`, `Mensagens prontas: ${rem.slice(0, 3).map(r => r.customer.name).join(', ')}${rem.length > 3 ? '…' : ''}.`, 'lembretes', 'Ver lembretes');
 
+    const nextDate = this.mk.upcomingDates(21).find(d => !S.campaigns.some(c => c.status !== 'encerrada' && c.starts_at && c.ends_at && d.date >= c.starts_at && d.date <= U.addDays(c.ends_at, 3)));
+    if (nextDate) push('info', 'date-' + nextDate.key, `${nextDate.name} em ${nextDate.days} dia${nextDate.days === 1 ? '' : 's'}: nenhuma campanha planejada`, nextDate.tip, 'marketing', 'Planejar campanha');
+
     const order = { urgent: 0, attention: 1, opportunity: 2, info: 3 };
     return out.filter(a => !dismissed.has(a.key)).sort((a, b) => order[a.level] - order[b.level]);
   },
@@ -235,6 +238,121 @@ PE.engine = {
       if (after.length) { back.add(cid); value += after.reduce((t, s) => t + Number(s.total), 0); }
     });
     return { sent30, back: back.size, value };
+  },
+
+  /* ---------- Marketing e campanhas ---------- */
+  mk: {
+    objectives: {
+      promocao: { label: 'Promoção', hint: 'Vender mais um produto com preço especial' },
+      estoque: { label: 'Girar estoque parado', hint: 'Transformar produto parado em caixa' },
+      recuperacao: { label: 'Recuperar clientes', hint: 'Trazer de volta quem sumiu' },
+      aniversario: { label: 'Aniversariantes', hint: 'Presente para quem faz aniversário' },
+      lancamento: { label: 'Lançamento', hint: 'Divulgar uma novidade' },
+      avaliacoes: { label: 'Pedir avaliações', hint: 'Coletar avaliações de quem comprou' }
+    },
+    channels: ['WhatsApp', 'Instagram', 'Facebook', 'Site', 'Loja física'],
+    statusMeta: { rascunho: { label: 'Rascunho', cls: '' }, ativa: { label: 'Ativa', cls: 'green' }, encerrada: { label: 'Encerrada', cls: '' } },
+
+    nthWeekday(y, m, wd, n) { const off = (wd - new Date(y, m, 1).getDay() + 7) % 7; return U.iso(new Date(y, m, 1 + off + (n - 1) * 7)); },
+    easter(y) {
+      const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
+        h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+        mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1;
+      return U.iso(new Date(y, mo - 1, da));
+    },
+    dates(y) {
+      const mk = (id, name, date, tip) => ({ key: `${id}-${y}`, name, date, tip });
+      return [
+        mk('ano', 'Ano Novo', `${y}-01-01`, 'Ofertas de recomeço e liquidação de verão.'),
+        mk('mulher', 'Dia da Mulher', `${y}-03-08`, 'Mimos, combos e mensagem carinhosa para clientes mulheres.'),
+        mk('pascoa', 'Páscoa', this.easter(y), 'Kits, presentes e combos para a família.'),
+        mk('maes', 'Dia das Mães', this.nthWeekday(y, 4, 0, 2), 'Uma das maiores datas do varejo: comece a divulgar com 2 semanas.'),
+        mk('namorados', 'Dia dos Namorados', `${y}-06-12`, 'Presentes e combos para casais.'),
+        mk('pais', 'Dia dos Pais', this.nthWeekday(y, 7, 0, 2), 'Presentes e ofertas para o público masculino.'),
+        mk('cliente', 'Dia do Cliente', `${y}-09-15`, 'Agradeça e recompense seus clientes fiéis.'),
+        mk('criancas', 'Dia das Crianças', `${y}-10-12`, 'Ofertas e brindes para famílias.'),
+        mk('blackfriday', 'Black Friday', this.nthWeekday(y, 10, 5, 4), 'Só entre com desconto se a margem aguentar: simule antes.'),
+        mk('natal', 'Natal', `${y}-12-25`, 'Presentes, combos e horários especiais.')
+      ];
+    },
+    upcomingDates(days = 90) {
+      const T = U.today(), y = Number(T.slice(0, 4)), end = U.addDays(T, days);
+      return [...this.dates(y), ...this.dates(y + 1)].filter(d => d.date >= T && d.date <= end).map(d => ({ ...d, days: U.daysBetween(T, d.date) })).sort((a, b) => a.date.localeCompare(b.date));
+    },
+
+    audienceOptions(S) {
+      const cities = [...new Set(S.customers.map(c => c.city).filter(Boolean))].sort();
+      return [['todos', 'Todos os clientes'], ['ativos', 'Clientes ativos (compraram nos últimos 60 dias)'], ['sumidos', 'Clientes sumidos (60+ dias sem comprar)'], ['vip', 'Clientes VIP'],
+        ['aniversariantes', 'Aniversariantes do mês'], ['recentes', 'Compraram nos últimos 30 dias'], ['potenciais', 'Contatos que ainda não compraram'], ...cities.map(c => ['city:' + c, 'Clientes de ' + c])];
+    },
+    audienceLabel(S, key) { return (this.audienceOptions(S).find(o => o[0] === key) || [key, key])[1]; },
+    audience(S, key) {
+      const month = U.today().slice(5, 7);
+      return S.customers.filter(c => {
+        const st = PE.engine.customerStats(S, c);
+        if (key === 'todos') return true;
+        if (key === 'ativos') return st.count > 0 && st.since < 60;
+        if (key === 'sumidos') return st.count > 0 && st.since >= 60;
+        if (key === 'vip') return st.status === 'vip';
+        if (key === 'aniversariantes') return !!c.birthday && c.birthday.slice(5, 7) === month;
+        if (key === 'recentes') return st.count > 0 && st.since >= 0 && st.since <= 30;
+        if (key === 'potenciais') return st.count === 0;
+        if (key.startsWith('city:')) return (c.city || '') === key.slice(5);
+        return false;
+      }).sort((a, b) => a.name.localeCompare(b.name));
+    },
+
+    /** Preço promocional sugerido: margem pela metade da meta, sem passar do preço atual. */
+    promoPrice(S, p) {
+      const target = Number(S.company?.target_margin || 30);
+      const r = PE.engine.pricing({ cost: Number(p.cost), tax: 0, commission: 0, card: Number(p.fee_pct || 0), freight: 0, expenses: 0, margin: target });
+      const cur = Number(p.price);
+      const v = r.promo && r.promo < cur ? Math.max(r.promo, cur * 0.85) : cur * 0.95;
+      return Math.ceil(v * 100) / 100;
+    },
+    margin(p, price) { const pr = Number(price); if (!p || !pr) return null; const profit = pr - Number(p.cost) - pr * Number(p.fee_pct || 0) / 100; return { profit, pct: profit / pr * 100 }; },
+
+    /** Gera nome, mensagem de WhatsApp e legenda de Instagram a partir dos dados informados. */
+    generate(S, { objective, product, price, audience, channel, starts, ends, link, occasion }) {
+      const emp = S.company?.name || 'nossa loja', P = product?.name, pr = price ? U.brl(price) : null;
+      const old = product && price && Number(price) < Number(product.price) ? U.brl(product.price) : null;
+      const oferta = P ? (pr ? `${P} por ${pr}${old ? ` (de ${old})` : ''}` : P) : 'condições especiais';
+      const val = ends ? ` Válido até ${U.fmtShort(ends)}.` : '';
+      const city = (audience || '').startsWith('city:') ? audience.slice(5) : null;
+      const msgs = {
+        promocao: `Oi {nome}! 🔥 Oferta especial na ${emp}: ${oferta}.${val} Quer que eu separe o seu?`,
+        estoque: `Oi {nome}! Estamos com condição especial em ${oferta}, enquanto durar o estoque.${val} Posso reservar para você?`,
+        recuperacao: `Oi {nome}, tudo bem? Aqui é da ${emp}. Sentimos sua falta! Preparamos ${oferta} para clientes especiais como você.${val} Vamos combinar?`,
+        aniversario: `Parabéns, {nome}! 🎉 A ${emp} preparou um presente para o seu mês: ${oferta}.${val} Me chama aqui para aproveitar!`,
+        lancamento: `Oi {nome}! Chegou novidade na ${emp}: ${oferta}. Quer ver fotos e detalhes?`,
+        avaliacoes: `Oi {nome}, obrigado por comprar na ${emp}! 💛 Sua opinião ajuda muito: pode deixar uma avaliação${link ? ' neste link: ' + link : ' respondendo esta mensagem'}? Leva menos de 1 minuto.`
+      };
+      const heads = { promocao: 'Oferta imperdível', estoque: 'Últimas unidades', recuperacao: 'Saudade de você', aniversario: 'Mês de aniversário', lancamento: 'Novidade na loja', avaliacoes: 'Conta pra gente!' };
+      const slug = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      const tags = ['#' + slug(emp), P ? '#' + slug(product.category || P) : '', city ? '#' + slug(city) : '', objective === 'avaliacoes' ? '#avaliacao' : '#oferta'].filter(t => t.length > 1).join(' ');
+      const caption = objective === 'avaliacoes'
+        ? `💛 ${heads.avaliacoes}\n\nSe você já comprou na ${emp}, deixe sua avaliação${link ? ':\n' + link : ' nos comentários ou no nosso WhatsApp'}. Ela ajuda muito!\n\n${tags}`
+        : `✨ ${occasion ? occasion + ': ' : ''}${heads[objective]} ✨\n\n${oferta}.${val}\n\n${channel === 'Loja física' ? 'Venha nos visitar' + (city ? ' em ' + city : '') + '! 📍' : 'Chame no WhatsApp e garanta o seu! 📲'}\n\n${tags}`;
+      const objLabel = occasion || this.objectives[objective].label;
+      return { name: `${objLabel}${P ? ' — ' + P : ''}${starts ? ' (' + U.fmtShort(starts) + ')' : ''}`, message: msgs[objective], caption };
+    },
+
+    /** Resultado medido: contatos enviados, clientes contatados que compraram e vendas do produto no período. */
+    results(S, c) {
+      const T = U.today(), start = c.starts_at || (c.created_at || T).slice(0, 10);
+      const end = c.ends_at ? (c.ends_at < T ? c.ends_at : T) : T;
+      const valid = S.sales.filter(s => s.status !== 'cancelada' && s.sold_at >= start && s.sold_at <= end);
+      let prodQty = 0, prodRev = 0;
+      if (c.product_id) valid.forEach(s => (s.items || []).filter(i => i.product_id === c.product_id).forEach(i => { prodQty += i.qty; prodRev += i.qty * i.unit_price; }));
+      const rows = S.notifications.filter(n => n.alert_key.startsWith(`cp:${c.id}:`));
+      let converted = 0, convValue = 0;
+      rows.forEach(n => {
+        const cid = n.alert_key.split(':')[2], d0 = n.created_at.slice(0, 10);
+        const after = S.sales.filter(s => s.customer_id === cid && s.status !== 'cancelada' && s.sold_at >= d0 && s.sold_at <= U.addDays(c.ends_at || d0, 7));
+        if (after.length) { converted++; convValue += after.reduce((t, s) => t + Number(s.total), 0); }
+      });
+      return { sent: rows.length, sentIds: new Set(rows.map(n => n.alert_key.split(':')[2])), converted, convValue, prodQty, prodRev };
+    }
   },
 
   levelMeta: { urgent: { label: 'Urgente', emoji: '🔴' }, attention: { label: 'Atenção', emoji: '🟡' }, info: { label: 'Informação', emoji: '🔵' }, opportunity: { label: 'Oportunidade', emoji: '🟢' } },

@@ -20,7 +20,7 @@ PE.u = {
 };
 
 /* ---------------- Camada de dados ---------------- */
-const TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks', 'stock_movements', 'notifications', 'consultations'];
+const TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks', 'stock_movements', 'notifications', 'consultations', 'campaigns'];
 const LS_KEY = 'prumo_demo_v1';
 
 PE.state = { company: null, ...Object.fromEntries(TABLES.map(t => [t, []])) };
@@ -257,6 +257,9 @@ PE.actions = {
     await PE.db.insert('opportunities', { customer_id: C[4].id, title: 'Enxoval de inverno', value: 650, stage: 'proposta', next_action: 'Cobrar resposta do orçamento', next_action_date: T });
     await PE.db.insert('opportunities', { customer_id: C[7].id, title: 'Kit uniforme equipe', value: 1800, stage: 'negociacao', next_action: 'Enviar novas condições', next_action_date: PE.u.addDays(T, 2) });
     await PE.db.insert('opportunities', { customer_id: null, title: 'Lead do Instagram — vestidos', value: 240, stage: 'novo', next_action: 'Responder no direct', next_action_date: T });
+    const jaq = P[5], ends = PE.u.addDays(T, 7), price = PE.engine.mk.promoPrice(S, jaq);
+    const gen = PE.engine.mk.generate(S, { objective: 'estoque', product: jaq, price, audience: 'ativos', channel: 'WhatsApp', starts: T, ends });
+    await PE.db.insert('campaigns', { name: gen.name, objective: 'estoque', audience: 'ativos', product_id: jaq.id, price, message: gen.message, caption: gen.caption, channel: 'WhatsApp', status: 'ativa', starts_at: T, ends_at: ends });
     await PE.db.insert('tasks', { title: 'Repor estoque de vestidos', category: 'estoque', priority: 'alta', status: 'aberta', due_date: PE.u.addDays(T, 1) });
     await PE.db.insert('tasks', { title: 'Postar promoção de fim de semana', category: 'marketing', priority: 'media', status: 'aberta', due_date: PE.u.addDays(T, 3) });
     await PE.db.insert('tasks', { title: 'Conferir maquininha de cartão', category: 'financeiro', priority: 'baixa', status: 'aberta', due_date: ago(1) });

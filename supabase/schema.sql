@@ -254,6 +254,8 @@ create table if not exists pe_campaigns (
   price       numeric(14,2),
   message     text,
   status      text default 'rascunho',
+  channel     text,
+  caption     text,
   starts_at   date,
   ends_at     date,
   created_at  timestamptz default now(),
@@ -282,6 +284,10 @@ create table if not exists pe_employees (
   created_at  timestamptz default now(),
   updated_at  timestamptz default now()
 );
+
+-- Bancos criados antes do módulo de Marketing: adiciona as colunas novas
+alter table pe_campaigns add column if not exists channel text;
+alter table pe_campaigns add column if not exists caption text;
 
 -- ---------- Alertas dispensados, consultas ao Consultor, métricas, auditoria ----------
 create table if not exists pe_notifications (
