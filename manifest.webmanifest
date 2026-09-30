@@ -1,0 +1,21 @@
+{
+  "name": "Prumo — gestão do pequeno negócio",
+  "short_name": "Prumo",
+  "description": "Venda mais, organize sua empresa e acompanhe seu dinheiro.",
+  "lang": "pt-BR",
+  "start_url": "app.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#111113",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Registrar venda", "url": "app.html#/vendas", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Atenção", "url": "app.html#/atencao", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
