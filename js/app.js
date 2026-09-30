@@ -141,19 +141,27 @@
     route();
   }
   A['logout'] = async () => { UI.closeModal(); await PE.db.signOut(); renderAuth(); };
-  A['drawer'] = () => document.querySelector('.app')?.classList.toggle('drawer-open');
+  A['drawer'] = () => { const app = document.querySelector('.app'); if (!app) return; if (app.classList.toggle('drawer-open')) PE.nav.open(); else PE.nav.close(false); };
   A['user-menu'] = () => UI.modal({ title: firstName(), body: `<p class="muted small">${esc(PE.db.user?.email || '')} · ${esc(PE.perm.roles[PE.perm.current()].label)}</p><div class="list">${PE.perm.canModule('configuracoes') ? `<a class="item clickable" href="#/configuracoes" data-act="close-modal" style="text-decoration:none">${UI.ico('gear')}<span class="title">Configurações</span></a>` : ''}<a class="item clickable" href="#" data-act="logout" style="text-decoration:none">${UI.ico('logout')}<span class="title">Sair</span></a></div>` });
   A['more'] = () => UI.modal({ title: 'Mais opções', body: `<div class="list">${NAV.filter(n => !['dashboard', 'clientes', 'vendas', 'financeiro', 'atencao'].includes(n[0]) && PE.perm.canModule(n[0])).map(([id, l, ic]) => `<a class="item clickable" href="#/${id}" data-act="close-modal" style="text-decoration:none">${UI.ico(ic)}<span class="title">${l}</span></a>`).join('')}<a class="item clickable" href="#" data-act="logout" style="text-decoration:none">${UI.ico('logout')}<span class="title">Sair</span></a></div>` });
 
+  const DEFAULT_TABS = { clientes: 'clientes', financeiro: 'resumo', marketing: 'campanhas', relatorios: null };
+  let lastView = null;
+  /** Navega para um endereço interno (cada aba vira uma entrada no histórico, para o "voltar" do celular). */
+  function go(hash) { if (location.hash === hash) refresh(); else location.hash = hash; }
   function route() {
     if (!S.company) return;
-    document.querySelector('.app')?.classList.remove('drawer-open');
-    let h = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('?')[0];
+    const appEl = document.querySelector('.app');
+    if (appEl && appEl.classList.contains('drawer-open')) { appEl.classList.remove('drawer-open'); PE.nav.close(true); }
+    const [name, query = ''] = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('?');
+    let h = name;
     if (!VIEWS[h]) h = 'dashboard';
+    if (h in DEFAULT_TABS) tabs[h] = new URLSearchParams(query).get('tab') || DEFAULT_TABS[h];
     if (!PE.perm.canModule(h)) { UI.toast('Seu perfil não tem acesso a esta área.', 'err'); if (location.hash !== '#/dashboard') { location.hash = '#/dashboard'; return; } h = 'dashboard'; }
     view = h;
     refresh();
-    window.scrollTo({ top: 0 });
+    if (h !== lastView) window.scrollTo({ top: 0 });
+    lastView = h;
     PE.auto.runScan(false).then(n => { if (n) refresh(); }).catch(() => {});
   }
   function refresh() {
@@ -249,7 +257,7 @@
       ${o.next_action ? `<div class="small">➜ ${esc(o.next_action)}</div>` : ''}
       <div class="row">${i > 0 ? `<button class="btn sm ghost" data-act="opp-move" data-id="${o.id}" data-dir="-1">←</button>` : ''}<span class="grow"></span>${i < STAGES.length - 1 ? `<button class="btn sm soft" data-act="opp-move" data-id="${o.id}" data-dir="1">${esc(STAGES[i + 1][1])} →</button>` : ''}</div></div>`;
   };
-  A['tab'] = d => { tabs[d.v] = d.t; refresh(); };
+  A['tab'] = d => go(`#/${d.v}?tab=${d.t}`);
   A['cust-filter'] = d => { custFilter = d.k; refresh(); };
   document.addEventListener('input', e => {
     const k = e.target.dataset?.input; if (!k) return;
@@ -295,7 +303,7 @@
     { name: 'stage', label: 'Etapa', type: 'select', options: STAGES }, { name: 'next_action_date', label: 'Próxima ação em', type: 'date' },
     { name: 'next_action', label: 'Próxima ação', full: true, placeholder: 'Ex.: Enviar proposta' }, { name: 'notes', label: 'Observações', type: 'textarea', full: true }
   ];
-  A['opp-new'] = d => UI.form({ title: 'Criar oportunidade', fields: oppFields(), values: { customer_id: d.customer || '', stage: 'novo', value: 0 }, onSubmit: async v => { await PE.db.insert('opportunities', { ...v, value: v.value || 0, customer_id: v.customer_id || null }); UI.closeModal(); tabs.clientes = 'pipeline'; if (view !== 'clientes') location.hash = '#/clientes'; else refresh(); UI.toast('Oportunidade criada.'); } });
+  A['opp-new'] = d => UI.form({ title: 'Criar oportunidade', fields: oppFields(), values: { customer_id: d.customer || '', stage: 'novo', value: 0 }, onSubmit: async v => { await PE.db.insert('opportunities', { ...v, value: v.value || 0, customer_id: v.customer_id || null }); UI.closeModal({ noBack: true }); go('#/clientes?tab=pipeline'); UI.toast('Oportunidade criada.'); } });
   A['opp-edit'] = d => { const o = S.opportunities.find(x => x.id === d.id); UI.form({ title: 'Editar oportunidade', fields: oppFields(), values: o, extraFooter: `<button type="button" class="btn danger" data-act="opp-del" data-id="${o.id}" style="margin-right:auto">Excluir</button><button type="button" class="btn ghost" data-act="opp-lost" data-id="${o.id}">Marcar perdida</button>`, onSubmit: async v => { await PE.db.update('opportunities', o.id, { ...v, value: v.value || 0, customer_id: v.customer_id || null }); UI.closeModal(); refresh(); } }); };
   A['opp-del'] = d => { UI.closeModal(); UI.confirm('Excluir esta oportunidade?', async () => { await PE.db.remove('opportunities', d.id); refresh(); }); };
   A['opp-lost'] = async d => { await PE.db.update('opportunities', d.id, { stage: 'perdido' }); UI.closeModal(); refresh(); UI.toast('Oportunidade marcada como perdida.'); };
@@ -471,7 +479,7 @@
           <div class="form-grid"><div class="field"><label>Preço de partida (R$)</label><input class="input" type="number" step="0.01" inputmode="decimal" id="pr-base" data-input="pricing" placeholder="Usa o recomendado"></div><div class="field"><label>Se eu der desconto de (%)</label><input class="input" type="number" step="0.1" min="0" id="pr-disc" data-input="pricing" value="10"></div><div class="field full"><label>Se eu vender por (R$)</label><input class="input" type="number" step="0.01" inputmode="decimal" id="pr-alt" data-input="pricing" placeholder="Ex.: 99,90"></div></div><div id="pr-sim-out" class="stack" style="gap:8px"></div></div></div></div>`;
   };
   document.addEventListener('change', e => { if (e.target.dataset?.actChange === 'price-load') { priceProduct = e.target.value || null; const p = S.products.find(x => x.id === priceProduct); if (p) { document.getElementById('pr-cost').value = p.cost; document.getElementById('pr-card').value = p.fee_pct || ''; document.getElementById('pr-base').value = p.price; } pricingCalc(); } });
-  A['price-from'] = d => { priceProduct = d.id; UI.closeModal(); if (view === 'precificacao') refresh(); else location.hash = '#/precificacao'; };
+  A['price-from'] = d => { priceProduct = d.id; UI.closeModal({ noBack: true }); go('#/precificacao'); };
   function pricingCalc() {
     const g = id => Number(document.getElementById(id)?.value) || 0; if (!document.getElementById('pr-out')) return;
     const r = E.pricing({ cost: g('pr-cost'), tax: g('pr-tax'), commission: g('pr-commission'), card: g('pr-card'), freight: g('pr-freight'), expenses: g('pr-expenses'), margin: g('pr-margin') });
@@ -645,7 +653,7 @@
         const product = S.products.find(p => p.id === v.product_id) || null;
         const gen = MK.generate(S, { objective: v.objective, product, price: v.price, audience: v.audience, channel: v.channel, starts: v.starts_at, ends: v.ends_at, link: v.link, occasion: d.occasion });
         const camp = await PE.db.insert('campaigns', { name: gen.name, objective: v.objective, audience: v.audience, product_id: product?.id || null, price: v.price || null, message: gen.message, caption: gen.caption, channel: v.channel, status: 'ativa', starts_at: v.starts_at, ends_at: v.ends_at || null });
-        UI.closeModal(); tabs.marketing = 'campanhas'; if (view !== 'marketing') location.hash = '#/marketing'; else refresh();
+        UI.closeModal({ noBack: true }); go('#/marketing?tab=campanhas');
         UI.toast('Campanha preparada!'); A['camp-open']({ id: camp.id });
       } });
     const form = document.getElementById('pe-form'), sel = form.elements.product_id, price = form.elements.price;

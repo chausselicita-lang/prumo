@@ -48,17 +48,23 @@ PE.ui = {
 
   /* ---------- Modal ---------- */
   modal({ title, body, footer = '', onMount, wide }) {
-    this.closeModal();
+    const reopening = !!document.getElementById('modal-ov');
+    this.closeModal({ silent: true });
     const ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'modal-ov';
     ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" ${wide ? 'style="width:min(820px,100%)"' : ''}>
       <div class="modal-head"><h2>${esc(title)}</h2><button class="icon-btn" data-act="close-modal" aria-label="Fechar">${this.ico('x', 18)}</button></div>
       <div class="modal-body">${body}${footer ? `<div class="modal-foot">${footer}</div>` : ''}</div></div>`;
     ov.addEventListener('mousedown', e => { if (e.target === ov) this.closeModal(); });
     document.body.appendChild(ov); document.body.style.overflow = 'hidden';
+    if (!reopening) PE.nav.open();
     if (onMount) onMount(ov.querySelector('.modal'));
     return ov;
   },
-  closeModal() { document.getElementById('modal-ov')?.remove(); document.body.style.overflow = ''; },
+  closeModal(opts) {
+    const el = document.getElementById('modal-ov'); if (!el) return;
+    el.remove(); document.body.style.overflow = '';
+    if (!(opts && opts.silent)) PE.nav.close(opts && opts.noBack);
+  },
 
   /* ---------- Formulário genérico ---------- */
   fieldHTML(f, v) {
@@ -130,5 +136,34 @@ document.addEventListener('click', e => {
   if (el.dataset.act !== 'close-modal') e.preventDefault();
   Promise.resolve(fn(el.dataset, el)).catch(err => { console.error(err); PE.ui.toast(err.message || 'Erro inesperado', 'err'); });
 });
-PE.ui.acts['close-modal'] = () => PE.ui.closeModal();
+PE.ui.acts['close-modal'] = (_d, el) => PE.ui.closeModal(el && el.tagName === 'A' ? { noBack: true } : undefined);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') PE.ui.closeModal(); });
+
+/* Botão "voltar" do celular: fecha janela e menu lateral antes de sair da tela.
+   Ao abrir uma janela/menu, cria uma entrada no histórico; ao voltar, fecha o que estiver aberto. */
+PE.nav = {
+  _entry: false, _backing: false, _want: false,
+  open() {
+    if (this._backing) { this._want = true; return; }
+    if (this._entry) return;
+    history.pushState({ pe: 1 }, ''); this._entry = true;
+  },
+  close(noBack) {
+    if (!this._entry) return;
+    this._entry = false;
+    if (noBack) return;               // vamos navegar em seguida: a entrada fica e é pulada depois
+    this._backing = true; history.back();
+  },
+  onPop(e) {
+    if (this._backing) {
+      this._backing = false;
+      if (this._want) { this._want = false; if (document.getElementById('modal-ov') || document.querySelector('.app.drawer-open')) { history.pushState({ pe: 1 }, ''); this._entry = true; } }
+      return;
+    }
+    const app = document.querySelector('.app');
+    if (document.getElementById('modal-ov')) { this._entry = false; PE.ui.closeModal({ silent: true }); return; }
+    if (app && app.classList.contains('drawer-open')) { this._entry = false; app.classList.remove('drawer-open'); return; }
+    if (e.state && e.state.pe) history.back();   // entrada sobrando de janela já fechada: pula
+  }
+};
+window.addEventListener('popstate', e => PE.nav.onPop(e));
