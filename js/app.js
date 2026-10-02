@@ -8,7 +8,7 @@
   const STAGES = [['novo', 'Novo lead'], ['contato', 'Contato'], ['negociacao', 'Negociação'], ['proposta', 'Proposta'], ['venda', 'Venda'], ['posvenda', 'Pós-venda']];
   const NAV = [
     ['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes', 'chat'], ['marketing', 'Marketing', 'megaphone'], ['loja', 'Loja online', 'store'], ['automacoes', 'Automações', 'bolt'],
-    ['financeiro', 'Financeiro', 'wallet'], ['produtos', 'Produtos', 'box'], ['precificacao', 'Precificação', 'calc'],
+    ['financeiro', 'Financeiro', 'wallet'],
     ['tarefas', 'Tarefas', 'check'], ['equipe', 'Equipe', 'users'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['relatorios', 'Relatórios', 'chart'], ['configuracoes', 'Configurações', 'gear']
   ];
   const tabs = { clientes: 'clientes', financeiro: 'resumo' };
@@ -132,7 +132,7 @@
   function shell() {
     root.innerHTML = `<div class="app">
       <aside class="sidebar"><div class="brand"><span class="logo">P</span><span>Prumo<small>${esc(S.company.name)}</small></span></div>
-        ${NAV.filter(n => PE.perm.canModule(n[0])).map(([id, label, ic]) => `${id === 'produtos' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : id === 'lembretes' ? '<span class="badge hidden" id="badge-lem" style="background:var(--orange)"></span>' : id === 'loja' ? '<span class="badge hidden" id="badge-loja"></span>' : ''}</a>`).join('')}
+        ${NAV.filter(n => PE.perm.canModule(n[0])).map(([id, label, ic]) => `${id === 'tarefas' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : id === 'lembretes' ? '<span class="badge hidden" id="badge-lem" style="background:var(--orange)"></span>' : id === 'loja' ? '<span class="badge hidden" id="badge-loja"></span>' : ''}</a>`).join('')}
         <div style="flex:1"></div><a class="nav-link" href="#" data-act="logout">${UI.ico('logout')}<span>Sair</span></a></aside>
       <div class="main"><header class="topbar"><button class="icon-btn menu-btn" data-act="drawer" aria-label="Abrir menu">${UI.ico('menu')}</button><div class="mobile-brand"><span class="logo" style="width:30px;height:30px;border-radius:10px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:16px">P</span>Prumo</div><div class="muted small grow" id="crumb"></div>
         <div class="row">${PE.db.mode === 'demo' ? `<select class="input" style="width:auto;padding:7px 10px;font-size:13px" data-act-change="demo-role" aria-label="Ver como">${Object.entries(PE.perm.roles).map(([k, r]) => `<option value="${k}" ${k === PE.perm.current() ? 'selected' : ''}>Ver como: ${r.label}</option>`).join('')}</select>` : ''}<button class="btn primary sm" data-act="sale-new">${UI.ico('plus', 16)} Registrar venda</button></div><button class="avatar orange topbar-avatar" data-act="user-menu" aria-label="Minha conta">${esc(U.initials(firstName()))}</button></header>
@@ -154,7 +154,8 @@
     if (!S.company) return;
     const appEl = document.querySelector('.app');
     if (appEl && appEl.classList.contains('drawer-open')) { appEl.classList.remove('drawer-open'); PE.nav.close(true); }
-    const [name, query = ''] = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('?');
+    let [name, query = ''] = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('?');
+    if (name === 'produtos' || name === 'precificacao') { query = 'tab=' + name; name = 'loja'; history.replaceState(history.state, '', '#/loja?' + query); }
     let h = name;
     if (!VIEWS[h]) h = 'dashboard';
     if (h in DEFAULT_TABS) tabs[h] = new URLSearchParams(query).get('tab') || DEFAULT_TABS[h];
@@ -436,19 +437,34 @@
 
   /* ---------- PRODUTOS ---------- */
   let prodQuery = '', prodFilter = 'todos';
-  VIEWS.produtos = () => {
-    const target = Number(S.company.target_margin || 30);
+  /** Aba "Produtos" da Loja online: cadastro, estoque, margem, foto e publicação numa lista só. */
+  const prodBody = () => {
+    const target = Number(S.company.target_margin || 30), canStore = PE.perm.can('store.catalog');
     const rows = S.products.map(p => ({ p, st: E.productStats(S, p) }));
-    const idle = rows.filter(x => x.st.idle), idleVal = idle.reduce((s, x) => s + x.st.stockValue, 0);
-    const f = { todos: () => true, baixo: x => !x.p.is_service && Number(x.p.min_stock) > 0 && Number(x.p.stock) <= Number(x.p.min_stock), margem: x => Number(x.p.price) > 0 && x.st.margin < target, parados: x => x.st.idle, alta: x => x.st.q30prev >= 2 && x.st.q30 > x.st.q30prev * 1.2 }[prodFilter];
+    const idle = rows.filter(x => x.st.idle), idleVal = idle.reduce((t, x) => t + x.st.stockValue, 0);
+    const pub = rows.filter(x => x.p.published).length, noPhoto = rows.filter(x => !x.p.image_url).length;
+    const f = {
+      todos: () => true, naloja: x => !!x.p.published, semfoto: x => !x.p.image_url,
+      baixo: x => !x.p.is_service && Number(x.p.min_stock) > 0 && Number(x.p.stock) <= Number(x.p.min_stock),
+      margem: x => Number(x.p.price) > 0 && x.st.margin < target, parados: x => x.st.idle, alta: x => x.st.q30prev >= 2 && x.st.q30 > x.st.q30prev * 1.2
+    }[prodFilter] || (() => true);
     const list = rows.filter(x => f(x) && (!prodQuery || (x.p.name + ' ' + (x.p.sku || '')).toLowerCase().includes(prodQuery))).sort((a, b) => a.p.name.localeCompare(b.p.name));
-    return `<div class="page-head"><h1>Produtos</h1><div class="row wrap"><button class="btn primary" data-act="prod-new">${UI.ico('plus', 16)} Novo produto</button><a class="btn ghost" href="#/precificacao">Precificação</a></div></div>
+    const item = ({ p, st }) => {
+      const low = !p.is_service && Number(p.min_stock) > 0 && Number(p.stock) <= Number(p.min_stock);
+      return `<div class="item clickable" data-act="prod-edit" data-id="${p.id}" style="align-items:flex-start"><div class="avatar" style="width:56px;height:56px;border-radius:14px;overflow:hidden;padding:0;flex:none">${thumb(p)}</div>
+        <div class="grow"><div class="title">${esc(p.name)} ${p.is_service ? UI.chip('Serviço') : ''}</div><div class="sub">${p.sku ? esc(p.sku) + ' · ' : ''}Custo ${U.brl(p.cost)} · Preço ${U.brl(p.price)}${!p.is_service ? ` · Estoque ${Number(p.stock)}` : ''}</div>
+          <div class="row wrap" style="margin-top:6px;gap:6px">${p.published ? UI.chip('Na loja', 'green') : ''}${!p.image_url ? UI.chip('Sem foto', 'yellow') : ''}${st.idle ? UI.chip('Parado', 'yellow') : ''}${low ? UI.chip('Repor', 'red') : ''}</div>
+          ${canStore ? `<div class="row wrap" style="margin-top:8px;gap:6px">${uploadBtn(p.image_url ? 'Trocar foto' : '+ Foto', 'product', p.id)}<button class="btn sm ${p.published ? 'primary' : 'ghost'}" data-act="pub-toggle" data-id="${p.id}">${p.published ? '✓ Na loja' : 'Publicar na loja'}</button></div>` : ''}</div>
+        <div class="right">${marginChip(st.margin)}</div></div>`;
+    };
+    return `<div class="card row between wrap"><div><strong>${pub} de ${rows.length} produtos na loja online</strong><p class="small muted">${noPhoto ? `${noPhoto} sem foto. ` : ''}Só os publicados aparecem para o cliente; custo e margem nunca são mostrados.</p></div>
+        <div class="row wrap"><button class="btn primary sm" data-act="prod-new">${UI.ico('plus', 16)} Novo produto</button><button class="btn sm soft" data-act="pub-all">Publicar todos com preço</button></div></div>
       ${idleVal > 0 ? `<div class="alert info"><span class="dot"></span><div class="grow"><div class="a-title">Você possui ${U.brl0(idleVal)} em produtos sem venda há mais de 90 dias.</div><div class="a-detail">${idle.slice(0, 4).map(x => esc(x.p.name)).join(', ')}. Uma promoção pode transformar isso em caixa.</div><div class="a-actions"><button class="btn sm ghost" data-act="prod-filter" data-k="parados">Ver produtos parados</button></div></div></div>` : ''}
       <input class="input" placeholder="Buscar produto ou SKU…" data-input="prod-q" value="${esc(prodQuery)}">
-      <div class="filters">${[['todos', 'Todos'], ['baixo', 'Estoque baixo'], ['margem', 'Margem baixa'], ['parados', 'Parados'], ['alta', 'Vendendo mais']].map(([k, l]) => `<button class="pill ${prodFilter === k ? 'active' : ''}" data-act="prod-filter" data-k="${k}">${l}</button>`).join('')}</div>
-      ${list.length ? `<div class="list">${list.map(({ p, st }) => `<div class="item clickable" data-act="prod-edit" data-id="${p.id}"><div class="avatar">${esc(U.initials(p.name))}</div><div class="grow"><div class="title">${esc(p.name)} ${p.is_service ? UI.chip('Serviço') : ''}</div><div class="sub">${p.sku ? esc(p.sku) + ' · ' : ''}Custo ${U.brl(p.cost)} · Preço ${U.brl(p.price)}${!p.is_service ? ` · Estoque ${Number(p.stock)}` : ''}</div></div><div class="right">${marginChip(st.margin)}<div class="row" style="justify-content:flex-end;margin-top:6px">${st.idle ? UI.chip('Parado', 'yellow') : ''}${!p.is_service && Number(p.min_stock) > 0 && Number(p.stock) <= Number(p.min_stock) ? UI.chip('Repor', 'red') : ''}</div></div></div>`).join('')}</div>` : `<div class="card">${UI.empty('📦', S.products.length ? 'Nada encontrado' : 'Nenhum produto ainda', S.products.length ? 'Tente outro filtro.' : 'Cadastre seus produtos e serviços para o Prumo calcular margem e vigiar o estoque.', S.products.length ? '' : '<button class="btn primary" data-act="prod-new">Cadastrar produto</button>')}</div>`}`;
+      <div class="filters">${[['todos', 'Todos'], ['naloja', 'Na loja'], ['semfoto', 'Sem foto'], ['baixo', 'Estoque baixo'], ['margem', 'Margem baixa'], ['parados', 'Parados'], ['alta', 'Vendendo mais']].map(([k, l]) => `<button class="pill ${prodFilter === k ? 'active' : ''}" data-act="prod-filter" data-k="${k}">${l}</button>`).join('')}</div>
+      ${list.length ? `<div class="list">${list.map(item).join('')}</div>` : `<div class="card">${UI.empty('📦', S.products.length ? 'Nada encontrado' : 'Nenhum produto ainda', S.products.length ? 'Tente outro filtro.' : 'Cadastre seus produtos e serviços para o Prumo calcular margem, vigiar o estoque e mostrar na loja online.', S.products.length ? '' : '<button class="btn primary" data-act="prod-new">Cadastrar produto</button>')}</div>`}`;
   };
-  A['prod-filter'] = d => { prodFilter = d.k; if (view !== 'produtos') location.hash = '#/produtos'; else refresh(); };
+  A['prod-filter'] = d => { prodFilter = d.k; go('#/loja?tab=produtos'); };
   const prodFields = [
     { name: 'name', label: 'Nome', required: true, full: true }, { name: 'sku', label: 'SKU / código' }, { name: 'category', label: 'Categoria', list: [...new Set(S.products.map(p => p.category).filter(Boolean))] },
     { name: 'cost', label: 'Custo (R$)', type: 'number', step: '0.01', min: 0, required: true }, { name: 'price', label: 'Preço de venda (R$)', type: 'number', step: '0.01', min: 0, required: true },
@@ -461,7 +477,7 @@
   A['prod-new'] = () => UI.form({ title: 'Novo produto', fields: prodFields, values: { fee_pct: 0, stock: 0, min_stock: 0 }, onSubmit: async v => { await PE.db.insert('products', cleanProd(v)); UI.closeModal(); refresh(); UI.toast('Produto cadastrado.'); } });
   A['prod-edit'] = d => {
     const p = S.products.find(x => x.id === d.id);
-    UI.form({ title: 'Editar produto', fields: prodFields, values: p, extraFooter: `<button type="button" class="btn danger" data-act="prod-del" data-id="${p.id}" style="margin-right:auto">Excluir</button>${p.is_service ? '' : `<button type="button" class="btn ghost" data-act="stock-adjust" data-id="${p.id}">Ajustar estoque</button>`}<a class="btn ghost" href="#/precificacao" data-act="price-from" data-id="${p.id}">Precificar</a>`, onSubmit: async v => { await PE.db.update('products', p.id, cleanProd(v)); UI.closeModal(); refresh(); UI.toast('Produto atualizado.'); } });
+    UI.form({ title: 'Editar produto', fields: prodFields, values: p, extraFooter: `<button type="button" class="btn danger" data-act="prod-del" data-id="${p.id}" style="margin-right:auto">Excluir</button>${p.is_service ? '' : `<button type="button" class="btn ghost" data-act="stock-adjust" data-id="${p.id}">Ajustar estoque</button>`}<a class="btn ghost" href="#/loja?tab=precificacao" data-act="price-from" data-id="${p.id}">Precificar</a>${PE.perm.can('store.catalog') ? uploadBtn(p.image_url ? 'Trocar foto' : '+ Foto', 'product', p.id) : ''}`, onSubmit: async v => { await PE.db.update('products', p.id, cleanProd(v)); UI.closeModal(); refresh(); UI.toast('Produto atualizado.'); } });
   };
   A['prod-del'] = d => { UI.closeModal(); UI.confirm('Excluir este produto?', async () => { await PE.db.remove('products', d.id); refresh(); }); };
   A['stock-adjust'] = d => {
@@ -471,12 +487,12 @@
 
   /* ---------- PRECIFICAÇÃO ---------- */
   let priceProduct = null;
-  VIEWS.precificacao = () => {
+  const precBody = () => {
     const p = S.products.find(x => x.id === priceProduct);
     const v = { cost: p?.cost ?? '', tax: '', commission: '', card: p?.fee_pct ?? '', freight: '', expenses: '', margin: S.company.target_margin || 30 };
     const inp = (n, l, val, step = '0.01', hint) => `<div class="field"><label>${l}</label><input class="input" type="number" min="0" step="${step}" inputmode="decimal" id="pr-${n}" data-input="pricing" value="${val}" placeholder="0">${hint ? `<span class="hint">${hint}</span>` : ''}</div>`;
     setTimeout(pricingCalc, 0);
-    return `<div class="page-head"><div><h1>Precificação</h1><p class="muted">Descubra o preço certo e simule descontos antes de decidir.</p></div></div>
+    return `<p class="muted">Descubra o preço certo e simule descontos antes de decidir.</p>
       <div class="grid cols-2"><div class="card stack"><div class="card-title"><h2>Custos e taxas</h2></div>
         <div class="field"><label>Carregar de um produto</label><select class="input" id="pr-prod" data-act-change="price-load"><option value="">— digitar manualmente —</option>${S.products.map(x => `<option value="${x.id}" ${x.id === priceProduct ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
         <div class="form-grid">${inp('cost', 'Custo do produto (R$)', v.cost)}${inp('freight', 'Frete (R$)', v.freight)}${inp('expenses', 'Despesas por unidade (R$)', v.expenses, '0.01', 'Embalagem, rateio de aluguel…')}${inp('tax', 'Impostos (%)', v.tax)}${inp('commission', 'Comissão (%)', v.commission)}${inp('card', 'Taxa do cartão (%)', v.card)}${inp('margin', 'Margem desejada (%)', v.margin)}</div></div>
@@ -484,7 +500,7 @@
           <div class="form-grid"><div class="field"><label>Preço de partida (R$)</label><input class="input" type="number" step="0.01" inputmode="decimal" id="pr-base" data-input="pricing" placeholder="Usa o recomendado"></div><div class="field"><label>Se eu der desconto de (%)</label><input class="input" type="number" step="0.1" min="0" id="pr-disc" data-input="pricing" value="10"></div><div class="field full"><label>Se eu vender por (R$)</label><input class="input" type="number" step="0.01" inputmode="decimal" id="pr-alt" data-input="pricing" placeholder="Ex.: 99,90"></div></div><div id="pr-sim-out" class="stack" style="gap:8px"></div></div></div></div>`;
   };
   document.addEventListener('change', e => { if (e.target.dataset?.actChange === 'price-load') { priceProduct = e.target.value || null; const p = S.products.find(x => x.id === priceProduct); if (p) { document.getElementById('pr-cost').value = p.cost; document.getElementById('pr-card').value = p.fee_pct || ''; document.getElementById('pr-base').value = p.price; } pricingCalc(); } });
-  A['price-from'] = d => { priceProduct = d.id; UI.closeModal({ noBack: true }); go('#/precificacao'); };
+  A['price-from'] = d => { priceProduct = d.id; UI.closeModal({ noBack: true }); go('#/loja?tab=precificacao'); };
   function pricingCalc() {
     const g = id => Number(document.getElementById(id)?.value) || 0; if (!document.getElementById('pr-out')) return;
     const r = E.pricing({ cost: g('pr-cost'), tax: g('pr-tax'), commission: g('pr-commission'), card: g('pr-card'), freight: g('pr-freight'), expenses: g('pr-expenses'), margin: g('pr-margin') });
@@ -729,7 +745,7 @@
   };
   const timeAgo = iso => { const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`; };
   const lojaTabsFor = () => PE.perm.lojaTabs[PE.perm.current()] || [];
-  const LOJA_LABELS = { pedidos: 'Pedidos', catalogo: 'Catálogo', links: 'Links e resultados', config: 'Configuração' };
+  const LOJA_LABELS = { pedidos: 'Pedidos', produtos: 'Produtos', precificacao: 'Precificação', links: 'Links e resultados', config: 'Configuração' };
   const thumb = p => (p.image_url ? `<img src="${esc(p.image_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` : esc(U.initials(p.name)));
   const uploadBtn = (label, kind, id) => `<label class="btn sm ghost" style="cursor:pointer">${label}<input type="file" accept="image/*" hidden data-act-change="img-upload" data-kind="${kind}" data-id="${id || ''}"></label>`;
 
@@ -740,9 +756,9 @@
   VIEWS.loja = () => {
     const allowed = lojaTabsFor(); if (!allowed.includes(tabs.loja)) tabs.loja = allowed[0];
     const tab = tabs.loja, newCount = S.orders.filter(o => o.status === 'novo').length;
-    const head = `<div class="page-head"><div><h1>Loja online</h1><p class="muted">Catálogo e página de campanha com pedido direto no Prumo.</p></div>${shopOn() || PE.db.mode === 'demo' ? `<a class="btn ghost" href="${esc(shopLink())}" target="_blank" rel="noopener">Ver minha loja</a>` : ''}</div>
+    const head = `<div class="page-head"><div><h1>Loja online</h1><p class="muted">Produtos, loja online e pedidos num só lugar.</p></div>${shopOn() || PE.db.mode === 'demo' ? `<a class="btn ghost" href="${esc(shopLink())}" target="_blank" rel="noopener">Ver minha loja</a>` : ''}</div>
       <div class="filters">${allowed.map(k => `<button class="pill ${tab === k ? 'active' : ''}" data-act="tab" data-v="loja" data-t="${k}">${LOJA_LABELS[k]}${k === 'pedidos' && newCount ? ` (${newCount})` : ''}</button>`).join('')}</div>`;
-    if (!shopOn() && tab !== 'config' && PE.db.mode !== 'demo') return head + `<div class="card">${UI.empty('🛍️', 'Sua loja ainda não está no ar', 'Defina o endereço, o WhatsApp e escolha os produtos que aparecem. Leva poucos minutos.', PE.perm.can('store.config') ? '<a class="btn primary" href="#/loja?tab=config">Configurar loja</a>' : '<p class="small muted">Peça ao administrador para configurar.</p>')}</div>`;
+    if (!shopOn() && ['pedidos', 'links'].includes(tab) && PE.db.mode !== 'demo') return head + `<div class="card">${UI.empty('🛍️', 'Sua loja ainda não está no ar', 'Defina o endereço, o WhatsApp e escolha os produtos que aparecem. Leva poucos minutos.', PE.perm.can('store.config') ? '<a class="btn primary" href="#/loja?tab=config">Configurar loja</a>' : '<p class="small muted">Peça ao administrador para configurar.</p>')}</div>`;
 
     if (tab === 'pedidos') {
       const f = tabs.lojaStatus || 'novo', list = S.orders.filter(o => f === 'todos' || o.status === f);
@@ -753,14 +769,8 @@
           : `<div class="card">${UI.empty('📥', f === 'novo' ? 'Nenhum pedido novo' : 'Nada por aqui', 'Quando um cliente enviar um pedido pela loja, ele aparece aqui na hora (o app confere a cada minuto).')}</div>`}`;
     }
 
-    if (tab === 'catalogo') {
-      const prods = S.products.filter(p => p.active !== false).sort((a, b) => a.name.localeCompare(b.name)), pub = prods.filter(p => p.published).length;
-      const canEdit = PE.perm.can('store.catalog');
-      return head + `<div class="card row between wrap"><div><strong>${pub} de ${prods.length} produtos publicados</strong><p class="small muted">Só os publicados aparecem na loja. Custo e margem nunca são mostrados.</p></div>${canEdit ? '<button class="btn sm soft" data-act="pub-all">Publicar todos com preço</button>' : ''}</div>
-        ${prods.length ? `<div class="list">${prods.map(p => `<div class="item"><div class="avatar" style="width:54px;height:54px;border-radius:14px;overflow:hidden;padding:0">${thumb(p)}</div><div class="grow"><div class="title">${esc(p.name)}</div><div class="sub">${U.brl(p.price)}${!p.is_service ? ` · estoque ${Number(p.stock)}` : ''}${!p.image_url ? ' · <span class="down">sem foto</span>' : ''}</div></div>
-          ${canEdit ? `<div class="row wrap" style="justify-content:flex-end">${uploadBtn(p.image_url ? 'Trocar foto' : 'Foto', 'product', p.id)}<button class="btn sm ${p.published ? 'primary' : 'ghost'}" data-act="pub-toggle" data-id="${p.id}">${p.published ? '✓ Publicado' : 'Publicar'}</button></div>` : (p.published ? UI.chip('Publicado', 'green') : '')}</div>`).join('')}</div>`
-          : `<div class="card">${UI.empty('📦', 'Cadastre produtos primeiro', 'Os produtos vêm da tela Produtos.', '<a class="btn primary" href="#/produtos">Ir para Produtos</a>')}</div>`}`;
-    }
+    if (tab === 'produtos') return head + prodBody();
+    if (tab === 'precificacao') return head + precBody();
 
     if (tab === 'links') {
       setTimeout(() => { const b = document.getElementById('qr-box'); if (b && window.QRCode && (shopOn() || PE.db.mode === 'demo')) { b.innerHTML = ''; new QRCode(b, { text: shopLink(), width: 150, height: 150 }); } }, 0);

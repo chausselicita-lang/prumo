@@ -559,3 +559,13 @@ PE.perm.lojaTabs = {
 Object.assign(PE.perm.actions, {
   'store.config': ['administrador'], 'store.catalog': ['administrador', 'gerente', 'operacional'], 'order.manage': ['administrador', 'gerente', 'vendedor']
 });
+
+/* Produtos e Precificação agora são abas da Loja online (um só lugar para produto, estoque, foto e pedido) */
+Object.values(PE.perm.modules).forEach(list => ['produtos', 'precificacao'].forEach(m => { const i = list.indexOf(m); if (i >= 0) list.splice(i, 1); }));
+PE.perm.modules.financeiro.push('loja');
+delete PE.perm.moduleLabels.produtos; delete PE.perm.moduleLabels.precificacao;
+PE.perm.moduleLabels.loja = 'Loja online (produtos, pedidos)';
+PE.perm.lojaTabs = {
+  administrador: ['pedidos', 'produtos', 'precificacao', 'links', 'config'], gerente: ['pedidos', 'produtos', 'precificacao', 'links', 'config'],
+  vendedor: ['pedidos', 'produtos', 'precificacao'], financeiro: ['produtos', 'precificacao'], operacional: ['produtos']
+};
