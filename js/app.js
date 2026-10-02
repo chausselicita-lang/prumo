@@ -15,6 +15,7 @@
   let view = 'dashboard';
   const session = { chat: [] };
 
+  const nz = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();   // busca sem acento
   const per = () => E.period(UI.range, UI.custom);
   const custName = id => S.customers.find(c => c.id === id)?.name || null;
   const firstName = () => (S.company?.owner_name || PE.db.user?.user_metadata?.name || (PE.db.user?.email || '').split('@')[0] || 'empreendedor').split(' ')[0];
@@ -448,16 +449,16 @@
       baixo: x => !x.p.is_service && Number(x.p.min_stock) > 0 && Number(x.p.stock) <= Number(x.p.min_stock),
       margem: x => Number(x.p.price) > 0 && x.st.margin < target, parados: x => x.st.idle, alta: x => x.st.q30prev >= 2 && x.st.q30 > x.st.q30prev * 1.2
     }[prodFilter] || (() => true);
-    const list = rows.filter(x => f(x) && (!prodQuery || (x.p.name + ' ' + (x.p.sku || '')).toLowerCase().includes(prodQuery))).sort((a, b) => a.p.name.localeCompare(b.p.name));
+    const list = rows.filter(x => f(x) && (!prodQuery || nz(x.p.name + ' ' + (x.p.sku || '')).includes(nz(prodQuery)))).sort((a, b) => a.p.name.localeCompare(b.p.name));
     const item = ({ p, st }) => {
       const low = !p.is_service && Number(p.min_stock) > 0 && Number(p.stock) <= Number(p.min_stock);
       return `<div class="item clickable" data-act="prod-edit" data-id="${p.id}" style="align-items:flex-start"><div class="avatar" style="width:56px;height:56px;border-radius:14px;overflow:hidden;padding:0;flex:none">${thumb(p)}</div>
         <div class="grow"><div class="title">${esc(p.name)} ${p.is_service ? UI.chip('Serviço') : ''}</div><div class="sub">${p.sku ? esc(p.sku) + ' · ' : ''}Custo ${U.brl(p.cost)} · Preço ${U.brl(p.price)}${!p.is_service ? ` · Estoque ${Number(p.stock)}` : ''}</div>
-          <div class="row wrap" style="margin-top:6px;gap:6px">${p.published ? UI.chip('Na loja', 'green') : ''}${!p.image_url ? UI.chip('Sem foto', 'yellow') : ''}${st.idle ? UI.chip('Parado', 'yellow') : ''}${low ? UI.chip('Repor', 'red') : ''}</div>
-          ${canStore ? `<div class="row wrap" style="margin-top:8px;gap:6px">${uploadBtn(p.image_url ? 'Trocar foto' : '+ Foto', 'product', p.id)}<button class="btn sm ${p.published ? 'primary' : 'ghost'}" data-act="pub-toggle" data-id="${p.id}">${p.published ? '✓ Na loja' : 'Publicar na loja'}</button></div>` : ''}</div>
+          <div class="row wrap" style="margin-top:6px;gap:6px">${p.published ? UI.chip('Na loja', 'green') : ''}${p.featured ? UI.chip('★ Destaque', 'orange') : ''}${!p.image_url ? UI.chip('Sem foto', 'yellow') : ''}${st.idle ? UI.chip('Parado', 'yellow') : ''}${low ? UI.chip('Repor', 'red') : ''}</div>
+          ${canStore ? `<div class="row wrap" style="margin-top:8px;gap:6px">${uploadBtn(p.image_url ? 'Trocar foto' : '+ Foto', 'product', p.id)}<button class="btn sm ${p.published ? 'primary' : 'ghost'}" data-act="pub-toggle" data-id="${p.id}">${p.published ? '✓ Na loja' : 'Publicar na loja'}</button><button class="btn sm ${p.featured ? 'soft' : 'ghost'}" data-act="feat-toggle" data-id="${p.id}">${p.featured ? '★ Destaque' : '☆ Destacar'}</button></div>` : ''}</div>
         <div class="right">${marginChip(st.margin)}</div></div>`;
     };
-    return `<div class="card row between wrap"><div><strong>${pub} de ${rows.length} produtos na loja online</strong><p class="small muted">${noPhoto ? `${noPhoto} sem foto. ` : ''}Só os publicados aparecem para o cliente; custo e margem nunca são mostrados.</p></div>
+    return `<div class="card row between wrap"><div><strong>${pub} de ${rows.length} produtos na loja online</strong><p class="small muted">${noPhoto ? `${noPhoto} sem foto. ` : ''}Só os publicados aparecem para o cliente; custo e margem nunca são mostrados. <strong>Dica:</strong> fotos quadradas, fundo claro e boa luz vendem mais (o app corta no quadrado e deixa leve).</p></div>
         <div class="row wrap"><button class="btn primary sm" data-act="prod-new">${UI.ico('plus', 16)} Novo produto</button><button class="btn sm soft" data-act="pub-all">Publicar todos com preço</button></div></div>
       ${idleVal > 0 ? `<div class="alert info"><span class="dot"></span><div class="grow"><div class="a-title">Você possui ${U.brl0(idleVal)} em produtos sem venda há mais de 90 dias.</div><div class="a-detail">${idle.slice(0, 4).map(x => esc(x.p.name)).join(', ')}. Uma promoção pode transformar isso em caixa.</div><div class="a-actions"><button class="btn sm ghost" data-act="prod-filter" data-k="parados">Ver produtos parados</button></div></div></div>` : ''}
       <input class="input" placeholder="Buscar produto ou SKU…" data-input="prod-q" value="${esc(prodQuery)}">
@@ -471,7 +472,8 @@
     { name: 'fee_pct', label: 'Taxas sobre a venda (%)', type: 'number', step: '0.01', min: 0, hint: 'Cartão, comissão, impostos…' }, { name: 'barcode', label: 'Código de barras' },
     { name: 'stock', label: 'Estoque atual', type: 'number', step: 'any' }, { name: 'min_stock', label: 'Estoque mínimo', type: 'number', step: 'any' },
     { name: 'description', label: 'Descrição', type: 'textarea', full: true }, { name: 'is_service', label: 'Tipo', type: 'checkbox', checkLabel: 'É um serviço (não controla estoque)' },
-    { name: 'published', label: 'Loja online', type: 'checkbox', checkLabel: 'Mostrar este produto na loja online' }
+    { name: 'published', label: 'Loja online', type: 'checkbox', checkLabel: 'Mostrar este produto na loja online' },
+    { name: 'featured', label: 'Destaque', type: 'checkbox', checkLabel: 'Destacar no topo da loja (★)' }
   ];
   const cleanProd = v => ({ ...v, cost: v.cost || 0, price: v.price || 0, fee_pct: v.fee_pct || 0, stock: v.stock || 0, min_stock: v.min_stock || 0, active: true });
   A['prod-new'] = () => UI.form({ title: 'Novo produto', fields: prodFields, values: { fee_pct: 0, stock: 0, min_stock: 0 }, onSubmit: async v => { await PE.db.insert('products', cleanProd(v)); UI.closeModal(); refresh(); UI.toast('Produto cadastrado.'); } });
@@ -479,6 +481,8 @@
     const p = S.products.find(x => x.id === d.id);
     UI.form({ title: 'Editar produto', fields: prodFields, values: p, extraFooter: `<button type="button" class="btn danger" data-act="prod-del" data-id="${p.id}" style="margin-right:auto">Excluir</button>${p.is_service ? '' : `<button type="button" class="btn ghost" data-act="stock-adjust" data-id="${p.id}">Ajustar estoque</button>`}<a class="btn ghost" href="#/loja?tab=precificacao" data-act="price-from" data-id="${p.id}">Precificar</a>${PE.perm.can('store.catalog') ? uploadBtn(p.image_url ? 'Trocar foto' : '+ Foto', 'product', p.id) : ''}`, onSubmit: async v => { await PE.db.update('products', p.id, cleanProd(v)); UI.closeModal(); refresh(); UI.toast('Produto atualizado.'); } });
   };
+  const prodEditBase = A['prod-edit'];
+  A['prod-edit'] = d => { prodEditBase(d); const p = S.products.find(x => x.id === d.id); if (p && PE.perm.can('store.catalog')) document.querySelector('.modal-body')?.insertAdjacentHTML('afterbegin', photoBlockHTML(p)); };
   A['prod-del'] = d => { UI.closeModal(); UI.confirm('Excluir este produto?', async () => { await PE.db.remove('products', d.id); refresh(); }); };
   A['stock-adjust'] = d => {
     const p = S.products.find(x => x.id === d.id); UI.closeModal();
@@ -793,6 +797,12 @@
         <div class="field"><label>Instagram (opcional)</label><input class="input" name="instagram" value="${esc(st.instagram || '')}" placeholder="@minhaloja" ${can ? '' : 'disabled'}></div>
         <div class="field full"><label>Frase de destaque</label><input class="input" name="headline" value="${esc(st.headline || '')}" placeholder="Ex.: Moda feminina com entrega rápida" ${can ? '' : 'disabled'}></div>
         <div class="field full"><label>Sobre a loja</label><textarea class="input" name="about" ${can ? '' : 'disabled'}>${esc(st.about || '')}</textarea></div>
+        <div class="field full"><label>Capa da loja (imagem larga, aparece no topo)</label><div class="row wrap">${st.cover_url ? `<img src="${esc(st.cover_url)}" alt="" style="width:140px;height:64px;object-fit:cover;border-radius:12px">` : '<span class="small muted">Sem capa: a loja usa um degradê com a sua cor.</span>'}${can ? uploadBtn(st.cover_url ? 'Trocar capa' : 'Enviar capa', 'cover', '') : ''}</div></div>
+        <div class="field"><label>Cidade</label><input class="input" name="city" value="${esc(st.city || '')}" placeholder="São Paulo, SP" ${can ? '' : 'disabled'}></div>
+        <div class="field"><label>Horário de atendimento</label><input class="input" name="hours" value="${esc(st.hours || '')}" placeholder="Seg a Sáb, 9h às 18h" ${can ? '' : 'disabled'}></div>
+        <div class="field full"><label>Entrega e retirada</label><textarea class="input" name="delivery" placeholder="Ex.: Entregamos na região em até 2 dias úteis. Retirada grátis na loja." ${can ? '' : 'disabled'}>${esc(st.delivery || '')}</textarea></div>
+        <div class="field full"><label>Formas de pagamento</label><div class="row wrap">${['Pix', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro', 'Boleto', 'Transferência'].map(m => `<label class="chip" style="cursor:pointer;gap:6px"><input type="checkbox" name="pay" value="${m}" ${(st.payments || []).includes(m) ? 'checked' : ''} ${can ? '' : 'disabled'}> ${m}</label>`).join('')}</div></div>
+        <div class="field full"><label>Trocas e devoluções</label><textarea class="input" name="policy" placeholder="Ex.: Troca em até 7 dias, com etiqueta e sem uso." ${can ? '' : 'disabled'}>${esc(st.policy || '')}</textarea></div>
         <div class="field full"><label>Cor da loja</label><div class="row wrap">${ACCENTS.map(c => `<label style="cursor:pointer"><input type="radio" name="accent" value="${c}" ${(st.accent || '#f97316') === c ? 'checked' : ''} ${can ? '' : 'disabled'} hidden><span class="accent-dot" style="background:${c}"></span></label>`).join('')}</div></div>
         <div class="field full"><label class="row" style="text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink);font-weight:600"><input type="checkbox" name="show_prices" ${st.show_prices === false ? '' : 'checked'} ${can ? '' : 'disabled'}> Mostrar preços na loja</label></div>
         <div class="field full"><label>Logotipo</label><div class="row wrap"><div class="avatar" style="width:54px;height:54px;border-radius:14px;overflow:hidden;padding:0">${st.logo_url ? `<img src="${esc(st.logo_url)}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(U.initials(S.company.name))}</div>${can ? uploadBtn(st.logo_url ? 'Trocar logotipo' : 'Enviar logotipo', 'logo', '') : ''}</div></div>
@@ -806,7 +816,7 @@
     if (enabled && wa.length < 10) return UI.toast('Informe o WhatsApp (com DDD) para receber os pedidos.', 'err');
     await UI.run(async () => {
       try {
-        await PE.db.saveCompany({ slug, store_enabled: enabled, store_settings: { ...storeSettings(), whatsapp: wa, instagram: f.instagram.value.trim().replace(/^@?/, '@').replace(/^@$/, ''), headline: f.headline.value.trim(), about: f.about.value.trim(), accent: (f.accent.value || '#f97316'), show_prices: f.show_prices.checked } });
+        await PE.db.saveCompany({ slug, store_enabled: enabled, store_settings: { ...storeSettings(), whatsapp: wa, instagram: f.instagram.value.trim().replace(/^@?/, '@').replace(/^@$/, ''), headline: f.headline.value.trim(), about: f.about.value.trim(), accent: (f.accent.value || '#f97316'), show_prices: f.show_prices.checked, city: f.city.value.trim(), hours: f.hours.value.trim(), delivery: f.delivery.value.trim(), policy: f.policy.value.trim(), payments: [...f.querySelectorAll('input[name=pay]:checked')].map(i => i.value) } });
       } catch (err) { throw new Error(err.code === '23505' || /duplicate|unique/i.test(err.message) ? 'Esse endereço já está em uso. Escolha outro.' : err.message); }
       refresh(); UI.toast(enabled ? 'Loja salva e no ar!' : 'Loja salva (desligada).');
     }, f.querySelector('[type=submit]'));
@@ -818,18 +828,45 @@
   document.addEventListener('change', async e => {
     if (e.target.dataset?.actChange !== 'img-upload') return;
     const file = e.target.files && e.target.files[0]; if (!file) return; const k = e.target.dataset.kind, rid = e.target.dataset.id;
-    const need = k === 'product' ? 'store.catalog' : k === 'logo' ? 'store.config' : 'campaign.write';
+    const need = ['product', 'gallery'].includes(k) ? 'store.catalog' : ['logo', 'cover'].includes(k) ? 'store.config' : 'campaign.write';
     if (!PE.perm.can(need)) { e.target.value = ''; return UI.toast('Seu perfil não tem permissão para isso.', 'err'); }
     UI.toast('Enviando foto…');
     await UI.run(async () => {
-      const url = await PE.db.uploadImage(file, k === 'product' ? 'products' : k === 'logo' ? 'logo' : 'landing', k === 'logo' ? 400 : 900);
+      const folder = { product: 'products', gallery: 'products', logo: 'logo', cover: 'cover', landing: 'landing' }[k];
+      const url = await PE.db.uploadImage(file, folder, k === 'logo' ? 400 : k === 'cover' ? 1600 : k === 'landing' ? 1400 : 1200, ['product', 'gallery', 'logo'].includes(k));
       if (k === 'product') await PE.db.update('products', rid, { image_url: url });
+      else if (k === 'gallery') { const p = S.products.find(x => x.id === rid); if (!p.image_url) await PE.db.update('products', rid, { image_url: url }); else await PE.db.update('products', rid, { gallery: [...(p.gallery || []), url].slice(0, 4) }); }
       else if (k === 'logo') await PE.db.saveCompany({ store_settings: { ...storeSettings(), logo_url: url } });
+      else if (k === 'cover') await PE.db.saveCompany({ store_settings: { ...storeSettings(), cover_url: url } });
       else { const c = S.campaigns.find(x => x.id === rid); await PE.db.update('campaigns', rid, { landing: { ...(c.landing || {}), image: url } }); }
-      UI.toast('Foto salva.'); refresh(); if (k === 'landing') A['camp-open']({ id: rid });
+      UI.toast('Foto salva.');
+      if (k === 'gallery' && document.getElementById('photo-block')) renderPhotoBlock(rid); else refresh();
+      if (k === 'landing') A['camp-open']({ id: rid });
     });
     e.target.value = '';
   });
+
+  /* Fotos do produto (principal + até 4 extras) e destaque */
+  const photoBlockHTML = p => {
+    const imgs = [p.image_url, ...(p.gallery || [])].filter(Boolean);
+    return `<div id="photo-block" class="card flat stack" style="gap:8px"><div class="row between"><strong>Fotos do produto</strong><span class="small muted">${imgs.length}/5</span></div>
+      <div class="row wrap" style="gap:10px">${imgs.map((u, i) => `<div style="position:relative;width:78px;height:78px"><img src="${esc(u)}" alt="" style="width:78px;height:78px;object-fit:cover;border-radius:12px;border:${i === 0 ? '2px solid var(--orange)' : '1px solid var(--line)'}">
+        ${i === 0 ? '<span class="chip orange" style="position:absolute;left:3px;bottom:3px;padding:1px 7px;font-size:11px">Capa</span>' : `<button type="button" class="chip" style="position:absolute;left:3px;bottom:3px;padding:1px 7px;font-size:11px;border:0;cursor:pointer" data-act="gal-main" data-id="${p.id}" data-i="${i}">★ Capa</button>`}
+        <button type="button" aria-label="Remover foto" style="position:absolute;right:-6px;top:-6px;width:24px;height:24px;border-radius:50%;border:0;background:var(--ink);color:#fff;cursor:pointer" data-act="gal-del" data-id="${p.id}" data-i="${i}">×</button></div>`).join('')}
+        ${imgs.length < 5 ? uploadBtn(imgs.length ? '+ Foto' : '+ Adicionar foto', 'gallery', p.id) : ''}</div>
+      <p class="hint">A 1ª foto é a capa. Use fotos quadradas, fundo claro e boa luz, com o produto centralizado.</p></div>`;
+  };
+  const renderPhotoBlock = id => { const p = S.products.find(x => x.id === id), b = document.getElementById('photo-block'); if (p && b) { b.outerHTML = photoBlockHTML(p); } refresh(); };
+  A['gal-del'] = async d => {
+    const p = S.products.find(x => x.id === d.id), i = Number(d.i), g = [...(p.gallery || [])];
+    if (i === 0) await PE.db.update('products', p.id, { image_url: g.shift() || null, gallery: g }); else { g.splice(i - 1, 1); await PE.db.update('products', p.id, { gallery: g }); }
+    renderPhotoBlock(p.id);
+  };
+  A['gal-main'] = async d => {
+    const p = S.products.find(x => x.id === d.id), i = Number(d.i), g = [...(p.gallery || [])], main = p.image_url; const next = g[i - 1]; g[i - 1] = main;
+    await PE.db.update('products', p.id, { image_url: next, gallery: g }); renderPhotoBlock(p.id);
+  };
+  A['feat-toggle'] = async d => { const p = S.products.find(x => x.id === d.id); await PE.db.update('products', p.id, { featured: !p.featured }); refresh(); };
 
   /* Pedidos */
   A['order-open'] = d => {
@@ -1052,6 +1089,7 @@
   /* ---------- PERMISSÕES NA INTERFACE ---------- */
   // Ação da tela -> permissão exigida. O banco também impõe (RLS); aqui só evitamos botões que não funcionariam.
   const PERM_ACTS = {
+    'feat-toggle': 'store.catalog', 'gal-del': 'store.catalog', 'gal-main': 'store.catalog',
     'pub-toggle': 'store.catalog', 'pub-all': 'store.catalog', 'order-status': 'order.manage', 'order-wa': 'order.manage', 'order-sale': 'order.manage', 'landing-save': 'campaign.write',
     'auto-new': 'auto.write', 'auto-edit': 'auto.write', 'auto-preset': 'auto.write', 'auto-toggle': 'auto.write', 'auto-del': 'auto.write', 'auto-scan': 'auto.write',
     'sale-new': 'sale.create', 'sale-cancel': 'sale.cancel', 'sale-receive': 'sale.receive',

@@ -1,70 +1,108 @@
-/* Loja online do Prumo (pública). Mobile-first. A cor de destaque vem da loja (--accent). */
+/* Loja online do Prumo (pública). Mobile-first. Cor de destaque da loja em --accent. */
 :root {
   --accent: #f97316; --accent-ink: #fff;
-  --ink: #111113; --muted: #6b6f78; --line: #e6e8ec; --soft: #f6f7f9; --bg: #fff;
-  --radius: 18px; --shadow: 0 1px 2px rgba(17,17,19,.05), 0 8px 24px rgba(17,17,19,.07);
+  --ink: #111113; --muted: #6b6f78; --line: #e6e8ec; --soft: #f5f6f8; --bg: #fff;
+  --radius: 20px; --shadow: 0 1px 2px rgba(17,17,19,.05), 0 10px 28px rgba(17,17,19,.07);
   --font-head: 'Syne', system-ui, sans-serif; --font-body: 'DM Sans', system-ui, sans-serif;
+  --top-h: 58px;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; }
+html, body { margin: 0; scroll-behavior: smooth; }
 body { font-family: var(--font-body); color: var(--ink); background: var(--bg); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -.02em; line-height: 1.15; }
-button, input, textarea { font: inherit; color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
 a { color: inherit; }
 .lj-loading, .lj-empty { min-height: 70vh; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); }
 .lj-spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.lj-wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
 
-/* Cabeçalho */
-.lj-top { position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-.lj-top-in { max-width: 1040px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
-.lj-logo { width: 40px; height: 40px; border-radius: 13px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--font-head); font-weight: 800; font-size: 19px; overflow: hidden; flex: none; }
-.lj-logo img { width: 100%; height: 100%; object-fit: cover; }
-.lj-name { font-family: var(--font-head); font-weight: 800; font-size: 19px; letter-spacing: -.02em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Cabeçalho fixo */
+.lj-top { position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.lj-top-in { max-width: 1120px; margin: 0 auto; height: var(--top-h); padding: 0 16px; display: flex; align-items: center; gap: 12px; }
+.lj-mini-logo { width: 34px; height: 34px; border-radius: 11px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--font-head); font-weight: 800; overflow: hidden; flex: none; }
+.lj-mini-logo img { width: 100%; height: 100%; object-fit: cover; }
+.lj-name { font-family: var(--font-head); font-weight: 800; font-size: 18px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lj-cart-btn { position: relative; border: 1px solid var(--line); background: #fff; width: 44px; height: 44px; border-radius: 14px; cursor: pointer; display: grid; place-items: center; }
 .lj-cart-btn b { position: absolute; top: -6px; right: -6px; background: var(--accent); color: var(--accent-ink); font-size: 12px; min-width: 20px; height: 20px; border-radius: 99px; display: grid; place-items: center; padding: 0 5px; }
 
-.lj-wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
-.lj-section { padding: 18px 0; }
+/* Capa + identidade da marca */
+.lj-cover { height: 170px; background: linear-gradient(135deg, var(--accent), #111113); position: relative; overflow: hidden; }
+.lj-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lj-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.28)); }
+.lj-id { max-width: 1120px; margin: -46px auto 0; padding: 0 16px; position: relative; z-index: 2; }
+.lj-id-card { background: #fff; border-radius: 26px; box-shadow: var(--shadow); padding: 0 18px 18px; border: 1px solid var(--line); }
+.lj-logo { width: 88px; height: 88px; border-radius: 26px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--font-head); font-weight: 800; font-size: 38px; overflow: hidden; border: 4px solid #fff; box-shadow: 0 6px 18px rgba(0,0,0,.14); margin-top: -44px; }
+.lj-logo img { width: 100%; height: 100%; object-fit: cover; }
+.lj-id h1 { font-size: 26px; margin: 10px 0 2px; }
+.lj-tag { color: var(--muted); margin: 0 0 12px; }
+.lj-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.lj-fact { display: inline-flex; align-items: center; gap: 6px; background: var(--soft); border-radius: 99px; padding: 6px 13px; font-size: 14px; font-weight: 600; }
+.lj-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lj-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); background: #fff; border-radius: 14px; padding: 11px 18px; font-weight: 700; font-size: 15px; cursor: pointer; text-decoration: none; }
+.lj-btn.wa { background: #25d366; border-color: #25d366; color: #fff; }
+.lj-btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
 
-/* Página da campanha (hero) */
-.lj-hero { margin: 16px 0 6px; border-radius: 26px; overflow: hidden; background: var(--ink); color: #fff; position: relative; display: grid; }
+/* Página da campanha */
+.lj-hero { margin: 18px 0 4px; border-radius: 26px; overflow: hidden; background: var(--ink); color: #fff; position: relative; display: grid; }
 .lj-hero.has-img { grid-template-rows: 190px auto; }
 .lj-hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lj-hero-body { padding: 22px 20px 24px; position: relative; z-index: 1; }
 .lj-hero::after { content: ''; position: absolute; width: 360px; height: 360px; border-radius: 50%; right: -140px; bottom: -160px; background: radial-gradient(circle, var(--accent), transparent 68%); opacity: .55; pointer-events: none; }
 .lj-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: var(--accent-ink); border-radius: 99px; padding: 5px 12px; font-weight: 700; font-size: 13px; }
-.lj-hero h1 { font-size: 30px; margin: 12px 0 8px; }
+.lj-hero h2 { font-size: 30px; margin: 12px 0 8px; }
 .lj-hero p { color: #d7d9de; margin: 0 0 14px; max-width: 520px; }
 .lj-bullets { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 8px; }
 .lj-bullets li { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; }
 .lj-bullets li::before { content: '✓'; color: var(--accent-ink); background: var(--accent); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; flex: none; margin-top: 1px; }
 .lj-cta { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; cursor: pointer; background: var(--accent); color: var(--accent-ink); padding: 14px 24px; border-radius: 14px; font-weight: 700; font-size: 17px; text-decoration: none; box-shadow: 0 10px 24px rgba(0,0,0,.25); }
 .lj-count { margin-top: 12px; font-size: 14px; color: #c3c6cd; }
-.lj-intro { padding: 22px 0 6px; }
-.lj-intro h1 { font-size: 28px; }
-.lj-intro p { color: var(--muted); margin: 6px 0 0; max-width: 560px; }
 
-/* Busca e categorias */
-.lj-search { width: 100%; border: 1px solid var(--line); background: var(--soft); border-radius: 14px; padding: 13px 16px; outline: none; font-size: 16px; }
+/* Seções */
+.lj-section { padding: 22px 0 6px; }
+.lj-section > h2 { font-size: 22px; margin-bottom: 12px; display: flex; align-items: baseline; gap: 10px; }
+.lj-section > h2 small { font-family: var(--font-body); font-size: 14px; color: var(--muted); font-weight: 500; }
+
+/* Destaques */
+.lj-feat { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 62vw); gap: 12px; overflow-x: auto; padding: 4px 2px 14px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.lj-feat::-webkit-scrollbar { display: none; }
+.lj-feat .lj-card { scroll-snap-align: start; }
+@media (min-width: 700px) { .lj-feat { grid-auto-columns: 230px; } }
+
+/* Barra de categorias e busca */
+.lj-tools { position: sticky; top: var(--top-h); z-index: 20; background: rgba(255,255,255,.96); backdrop-filter: blur(10px); padding: 10px 0 8px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-bottom: 1px solid var(--line); }
+.lj-search-row { display: flex; gap: 8px; }
+.lj-search { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--soft); border-radius: 14px; padding: 12px 15px; outline: none; font-size: 16px; }
 .lj-search:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
-.lj-cats { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-.lj-chip { border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 8px 15px; cursor: pointer; font-weight: 600; font-size: 15px; }
+.lj-sort { border: 1px solid var(--line); background: #fff; border-radius: 14px; padding: 0 10px; font-size: 14px; font-weight: 600; max-width: 150px; }
+.lj-cats { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.lj-cats::-webkit-scrollbar { display: none; }
+.lj-chip { border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 8px 15px; cursor: pointer; font-weight: 600; font-size: 15px; white-space: nowrap; flex: none; }
+.lj-chip span { color: var(--muted); font-weight: 500; margin-left: 4px; }
 .lj-chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.lj-chip.on span { color: #c8cbd2; }
+.lj-count-line { color: var(--muted); font-size: 14px; margin: 14px 0 10px; }
 
 /* Produtos */
 .lj-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (min-width: 700px) { .lj-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } .lj-hero.has-img { grid-template-rows: none; grid-template-columns: 1fr 1fr; } .lj-hero-img { min-height: 320px; } .lj-hero h1 { font-size: 38px; } }
+@media (min-width: 700px) { .lj-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; } .lj-hero.has-img { grid-template-rows: none; grid-template-columns: 1fr 1fr; } .lj-hero-img { min-height: 320px; } .lj-hero h2 { font-size: 38px; } .lj-cover { height: 260px; } .lj-id h1 { font-size: 32px; } }
 @media (min-width: 980px) { .lj-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.lj-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow); position: relative; }
-.lj-photo { aspect-ratio: 1 / 1; background: var(--soft); display: grid; place-items: center; cursor: pointer; overflow: hidden; }
-.lj-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.lj-ph { font-family: var(--font-head); font-weight: 800; font-size: 40px; color: #c9ccd2; }
+.lj-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow); position: relative; transition: transform .18s, box-shadow .18s; }
+@media (hover: hover) { .lj-card:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(17,17,19,.12); } .lj-card:hover .lj-photo img { transform: scale(1.04); } }
+.lj-photo { aspect-ratio: 1 / 1; background: var(--soft); position: relative; cursor: pointer; overflow: hidden; display: grid; place-items: center; }
+.lj-photo:not(.ok):not(.noimg)::before { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, var(--soft) 30%, #eceef2 50%, var(--soft) 70%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.lj-photo img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .3s, transform .35s; position: relative; }
+.lj-photo.ok img { opacity: 1; }
+.lj-ph { font-family: var(--font-head); font-weight: 800; font-size: 44px; color: #c9ccd2; }
+.lj-multi { position: absolute; right: 8px; bottom: 8px; background: rgba(17,17,19,.7); color: #fff; font-size: 12px; font-weight: 700; border-radius: 99px; padding: 3px 9px; z-index: 1; }
 .lj-info { padding: 12px 13px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.lj-pname { font-weight: 600; line-height: 1.25; cursor: pointer; }
-.lj-price { font-family: var(--font-head); font-weight: 800; font-size: 18px; }
+.lj-cat { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.lj-pname { font-weight: 600; line-height: 1.28; cursor: pointer; }
+.lj-price { font-family: var(--font-head); font-weight: 800; font-size: 19px; }
 .lj-old { color: var(--muted); font-size: 14px; text-decoration: line-through; font-weight: 500; font-family: var(--font-body); margin-left: 6px; }
-.lj-tag { position: absolute; top: 10px; left: 10px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 99px; z-index: 1; }
+.lj-tagc { position: absolute; top: 10px; left: 10px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 99px; z-index: 1; }
+.lj-tagc.star { background: var(--ink); color: #fff; }
 .lj-add { margin-top: auto; border: 0; cursor: pointer; background: var(--ink); color: #fff; border-radius: 12px; padding: 11px; font-weight: 700; font-size: 15px; }
 .lj-add:disabled { background: var(--line); color: var(--muted); cursor: default; }
 .lj-step { margin-top: auto; display: flex; align-items: center; justify-content: space-between; background: var(--soft); border-radius: 12px; padding: 3px; }
@@ -72,19 +110,57 @@ a { color: inherit; }
 .lj-step span { font-weight: 700; }
 .lj-none { text-align: center; color: var(--muted); padding: 40px 10px; }
 
-/* Barra do carrinho */
+/* Como comprar e informações da loja */
+.lj-steps { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 700px) { .lj-steps { grid-template-columns: repeat(3, 1fr); } }
+.lj-step-card { background: var(--soft); border-radius: 20px; padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; }
+.lj-step-card b { width: 34px; height: 34px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--font-head); flex: none; }
+.lj-step-card p { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
+.lj-infos { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 700px) { .lj-infos { grid-template-columns: repeat(2, 1fr); } }
+.lj-info-card { border: 1px solid var(--line); border-radius: 20px; padding: 16px 18px; }
+.lj-info-card h3 { font-size: 16px; margin-bottom: 6px; }
+.lj-info-card p { margin: 0; color: var(--muted); white-space: pre-line; }
+.lj-pays { display: flex; flex-wrap: wrap; gap: 6px; }
+.lj-pays span { background: var(--soft); border-radius: 99px; padding: 5px 12px; font-size: 14px; font-weight: 600; }
+.lj-foot { text-align: center; color: var(--muted); font-size: 13px; padding: 34px 16px 120px; }
+.lj-foot a { color: inherit; }
+
+/* Barra do carrinho e atalho de WhatsApp */
 .lj-bar { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 40; max-width: 560px; margin: 0 auto; background: var(--ink); color: #fff; border: 0; border-radius: 18px; padding: 15px 18px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: 700; font-size: 16px; box-shadow: 0 14px 34px rgba(0,0,0,.3); }
 .lj-bar span:last-child { background: var(--accent); color: var(--accent-ink); padding: 6px 14px; border-radius: 12px; }
+.lj-fab { position: fixed; right: 14px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 35; width: 54px; height: 54px; border-radius: 50%; background: #25d366; color: #fff; display: grid; place-items: center; box-shadow: 0 10px 24px rgba(37,211,102,.45); text-decoration: none; }
+.lj-fab.low { bottom: calc(18px + env(safe-area-inset-bottom)); }
 
-/* Folhas (carrinho, detalhe) */
+/* Folhas (detalhe, carrinho) */
 .lj-ov { position: fixed; inset: 0; background: rgba(17,17,19,.55); z-index: 60; display: flex; align-items: flex-end; justify-content: center; animation: fade .15s; }
 @keyframes fade { from { opacity: 0; } }
-.lj-sheet { background: #fff; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 26px 26px 0 0; padding: 20px 18px calc(22px + env(safe-area-inset-bottom)); animation: up .22s ease; }
+.lj-sheet { background: #fff; width: 100%; max-width: 560px; max-height: 94vh; overflow-y: auto; border-radius: 26px 26px 0 0; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)); animation: up .22s ease; }
 @keyframes up { from { transform: translateY(40px); opacity: .5; } }
 @media (min-width: 700px) { .lj-ov { align-items: center; } .lj-sheet { border-radius: 26px; } }
-.lj-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.lj-x { border: 1px solid var(--line); background: #fff; width: 40px; height: 40px; border-radius: 12px; cursor: pointer; font-size: 18px; }
-.lj-detail-img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 18px; background: var(--soft); margin-bottom: 14px; display: block; }
+.lj-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 10px; }
+.lj-x { border: 1px solid var(--line); background: #fff; width: 40px; height: 40px; border-radius: 12px; cursor: pointer; font-size: 18px; flex: none; }
+
+/* Galeria do produto */
+.lj-gal-main { position: relative; border-radius: 20px; overflow: hidden; background: var(--soft); aspect-ratio: 1 / 1; cursor: zoom-in; }
+.lj-gal-main img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lj-gal-zoom { position: absolute; right: 10px; bottom: 10px; background: rgba(17,17,19,.7); color: #fff; border-radius: 99px; font-size: 12px; font-weight: 700; padding: 4px 10px; }
+.lj-thumbs { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; }
+.lj-thumbs button { width: 62px; height: 62px; border-radius: 14px; overflow: hidden; border: 2px solid transparent; padding: 0; background: var(--soft); cursor: pointer; flex: none; }
+.lj-thumbs button.on { border-color: var(--accent); }
+.lj-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lj-detail-price { font-family: var(--font-head); font-weight: 800; font-size: 26px; margin: 14px 0 4px; }
+.lj-stock-ok { display: inline-flex; gap: 6px; align-items: center; color: #15803d; font-weight: 600; font-size: 14px; }
+.lj-stock-no { color: #b42318; font-weight: 600; font-size: 14px; }
+
+/* Lightbox */
+.lj-lb { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.92); display: grid; place-items: center; animation: fade .15s; }
+.lj-lb img { max-width: 96vw; max-height: 86vh; object-fit: contain; border-radius: 10px; }
+.lj-lb button { position: absolute; background: rgba(255,255,255,.14); color: #fff; border: 0; width: 46px; height: 46px; border-radius: 50%; font-size: 22px; cursor: pointer; }
+.lj-lb .x { top: 14px; right: 14px; } .lj-lb .prev { left: 12px; top: 50%; } .lj-lb .next { right: 12px; top: 50%; }
+.lj-lb .n { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; color: #c8cbd2; font-size: 14px; }
+
+/* Carrinho e pedido */
 .lj-line { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .lj-line .t { flex: 1; min-width: 0; }
 .lj-line .t b { display: block; }
@@ -104,5 +180,3 @@ a { color: inherit; }
 .lj-ok { text-align: center; padding: 10px 0 4px; }
 .lj-ok .ico { width: 70px; height: 70px; border-radius: 24px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: 34px; margin: 0 auto 12px; }
 .lj-code { display: inline-block; background: var(--soft); border-radius: 12px; padding: 6px 14px; font-family: var(--font-head); font-weight: 800; letter-spacing: .08em; margin: 6px 0; }
-.lj-foot { text-align: center; color: var(--muted); font-size: 13px; padding: 30px 16px 110px; }
-.lj-foot a { color: inherit; }

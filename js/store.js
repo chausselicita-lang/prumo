@@ -120,24 +120,26 @@ PE.db = {
   },
 
   /* ----- Imagens: reduz no navegador e envia ao Storage (nuvem) ou guarda embutida (demo) ----- */
-  async resizeImage(file, max, quality) {
+  async resizeImage(file, max, quality, square) {
     const url = URL.createObjectURL(file);
     try {
       const img = await new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fail(new Error('Não foi possível ler a imagem.')); i.src = url; });
-      const k = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (square) { const m = Math.min(img.width, img.height); sx = (img.width - m) / 2; sy = (img.height - m) / 2; sw = sh = m; }   // recorte central 1:1
+      const k = Math.min(1, max / Math.max(sw, sh));
+      const c = document.createElement('canvas'); c.width = Math.round(sw * k); c.height = Math.round(sh * k);
+      const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high'; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
       return await new Promise(ok => c.toBlob(ok, 'image/jpeg', quality));
     } finally { URL.revokeObjectURL(url); }
   },
-  async uploadImage(file, folder, max = 900) {
+  async uploadImage(file, folder, max = 900, square = false) {
     if (!file || !/^image\//.test(file.type)) throw new Error('Escolha um arquivo de imagem.');
     if (file.size > 15 * 1024 * 1024) throw new Error('Imagem muito grande (máximo 15 MB).');
     if (this.mode === 'demo') {
-      const blob = await this.resizeImage(file, Math.min(max, 480), 0.7);
+      const blob = await this.resizeImage(file, Math.min(max, 480), 0.7, square);
       return await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
     }
-    const blob = await this.resizeImage(file, max, 0.82);
+    const blob = await this.resizeImage(file, max, 0.86, square);
     const path = `${PE.state.company.id}/${folder}/${PE.u.uid()}.jpg`;
     const { error } = await this.sb.storage.from('pe-media').upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
     if (error) throw new Error('Não foi possível enviar a imagem: ' + error.message);
@@ -270,7 +272,7 @@ PE.actions = {
     ];
     const P = [];
     for (const [name, sku, category, cost, price, fee_pct, stock, min_stock] of prods)
-      P.push(await PE.db.insert('products', { name, sku, category, cost, price, fee_pct, stock, min_stock, is_service: false, active: true, published: true }));
+      P.push(await PE.db.insert('products', { name, sku, category, cost, price, fee_pct, stock, min_stock, is_service: false, active: true, published: true, featured: ['Camiseta Básica', 'Tênis Casual', 'Vestido Floral'].includes(name) }));
     const cs = [
       ['Marina Souza', '(11) 98811-2233', 'Instagram', 'São Paulo', 5], ['João Batista', '(11) 97722-1100', 'Indicação', 'Osasco', 12],
       ['Carla Mendes', '(11) 96633-4455', 'WhatsApp', 'São Paulo', 2], ['Rafael Lima', '(21) 98877-6655', 'Loja física', 'Rio de Janeiro', 20],
@@ -309,7 +311,7 @@ PE.actions = {
     const jaq = P[5], ends = PE.u.addDays(T, 7), price = PE.engine.mk.promoPrice(S, jaq);
     const gen = PE.engine.mk.generate(S, { objective: 'estoque', product: jaq, price, audience: 'ativos', channel: 'WhatsApp', starts: T, ends });
     await PE.db.insert('campaigns', { name: gen.name, objective: 'estoque', audience: 'ativos', product_id: jaq.id, price, message: gen.message, caption: gen.caption, channel: 'WhatsApp', status: 'ativa', starts_at: T, ends_at: ends, slug: 'queima-jaqueta', landing: gen.landing });
-    if (!S.company.slug) await PE.db.saveCompany({ slug: 'loja-exemplo', store_enabled: true, store_settings: { whatsapp: '11999990000', headline: 'Moda com preço justo e entrega rápida', about: 'Peças selecionadas para todos os estilos. Peça pelo site e finalize pelo WhatsApp.', accent: '#f97316', show_prices: true } });
+    if (!S.company.slug) await PE.db.saveCompany({ slug: 'loja-exemplo', store_enabled: true, store_settings: { whatsapp: '11999990000', headline: 'Moda com preço justo e entrega rápida', about: 'Peças selecionadas para todos os estilos. Peça pelo site e finalize pelo WhatsApp.', accent: '#f97316', show_prices: true, city: 'São Paulo, SP', hours: 'Seg a Sáb, das 9h às 18h', delivery: 'Entregamos na região em até 2 dias úteis.\nRetirada grátis na loja.', policy: 'Troca em até 7 dias, com etiqueta e sem uso.', payments: ['Pix', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro'] } });
     await PE.db.insert('tasks', { title: 'Repor estoque de vestidos', category: 'estoque', priority: 'alta', status: 'aberta', due_date: PE.u.addDays(T, 1) });
     await PE.db.insert('tasks', { title: 'Postar promoção de fim de semana', category: 'marketing', priority: 'media', status: 'aberta', due_date: PE.u.addDays(T, 3) });
     await PE.db.insert('tasks', { title: 'Conferir maquininha de cartão', category: 'financeiro', priority: 'baixa', status: 'aberta', due_date: ago(1) });
