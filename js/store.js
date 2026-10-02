@@ -20,7 +20,9 @@ PE.u = {
 };
 
 /* ---------------- Camada de dados ---------------- */
-const TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks', 'stock_movements', 'notifications', 'consultations', 'campaigns', 'members', 'invites', 'automations'];
+const TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks', 'stock_movements', 'notifications', 'consultations', 'campaigns', 'members', 'invites', 'automations', 'orders', 'store_events'];
+// Tabelas "opcionais": se ainda não existirem no banco, o app continua funcionando com lista vazia.
+const CORE_TABLES = ['customers', 'opportunities', 'products', 'sales', 'transactions', 'tasks'];
 const LS_KEY = 'prumo_demo_v1';
 
 PE.state = { company: null, ...Object.fromEntries(TABLES.map(t => [t, []])) };
@@ -109,8 +111,47 @@ PE.db = {
     if (!S.company) { TABLES.forEach(t => { S[t] = []; }); return S; }
     const results = await Promise.all(TABLES.map(t =>
       this.sb.from('pe_' + t).select('*').eq('company_id', S.company.id).order('created_at', { ascending: false }).limit(5000)));
-    results.forEach((r, i) => { if (r.error && !/permission|policy/i.test(r.error.message)) throw r.error; S[TABLES[i]] = r.data || []; });
+    results.forEach((r, i) => {
+      if (r.error && CORE_TABLES.includes(TABLES[i]) && !/permission|policy/i.test(r.error.message)) throw r.error;
+      if (r.error) console.warn('Tabela opcional indisponível:', TABLES[i], r.error.message);
+      S[TABLES[i]] = r.error ? [] : (r.data || []);
+    });
     return S;
+  },
+
+  /* ----- Imagens: reduz no navegador e envia ao Storage (nuvem) ou guarda embutida (demo) ----- */
+  async resizeImage(file, max, quality) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fail(new Error('Não foi possível ler a imagem.')); i.src = url; });
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+      return await new Promise(ok => c.toBlob(ok, 'image/jpeg', quality));
+    } finally { URL.revokeObjectURL(url); }
+  },
+  async uploadImage(file, folder, max = 900) {
+    if (!file || !/^image\//.test(file.type)) throw new Error('Escolha um arquivo de imagem.');
+    if (file.size > 15 * 1024 * 1024) throw new Error('Imagem muito grande (máximo 15 MB).');
+    if (this.mode === 'demo') {
+      const blob = await this.resizeImage(file, Math.min(max, 480), 0.7);
+      return await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
+    }
+    const blob = await this.resizeImage(file, max, 0.82);
+    const path = `${PE.state.company.id}/${folder}/${PE.u.uid()}.jpg`;
+    const { error } = await this.sb.storage.from('pe-media').upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
+    if (error) throw new Error('Não foi possível enviar a imagem: ' + error.message);
+    return this.sb.storage.from('pe-media').getPublicUrl(path).data.publicUrl;
+  },
+  /** Busca pedidos novos da loja (a loja pública grava direto no banco). */
+  async refreshOrders() {
+    if (this.mode !== 'cloud' || !PE.state.company) return 0;
+    const { data, error } = await this.sb.from('pe_orders').select('*').eq('company_id', PE.state.company.id).order('created_at', { ascending: false }).limit(500);
+    if (error) return 0;
+    const known = new Set(PE.state.orders.map(o => o.id));
+    const fresh = (data || []).filter(o => !known.has(o.id));
+    PE.state.orders = data || [];
+    return fresh.length;
   },
 
   /* ----- Empresa ----- */
@@ -229,7 +270,7 @@ PE.actions = {
     ];
     const P = [];
     for (const [name, sku, category, cost, price, fee_pct, stock, min_stock] of prods)
-      P.push(await PE.db.insert('products', { name, sku, category, cost, price, fee_pct, stock, min_stock, is_service: false, active: true }));
+      P.push(await PE.db.insert('products', { name, sku, category, cost, price, fee_pct, stock, min_stock, is_service: false, active: true, published: true }));
     const cs = [
       ['Marina Souza', '(11) 98811-2233', 'Instagram', 'São Paulo', 5], ['João Batista', '(11) 97722-1100', 'Indicação', 'Osasco', 12],
       ['Carla Mendes', '(11) 96633-4455', 'WhatsApp', 'São Paulo', 2], ['Rafael Lima', '(21) 98877-6655', 'Loja física', 'Rio de Janeiro', 20],
@@ -267,7 +308,8 @@ PE.actions = {
     await PE.db.insert('opportunities', { customer_id: null, title: 'Lead do Instagram — vestidos', value: 240, stage: 'novo', next_action: 'Responder no direct', next_action_date: T });
     const jaq = P[5], ends = PE.u.addDays(T, 7), price = PE.engine.mk.promoPrice(S, jaq);
     const gen = PE.engine.mk.generate(S, { objective: 'estoque', product: jaq, price, audience: 'ativos', channel: 'WhatsApp', starts: T, ends });
-    await PE.db.insert('campaigns', { name: gen.name, objective: 'estoque', audience: 'ativos', product_id: jaq.id, price, message: gen.message, caption: gen.caption, channel: 'WhatsApp', status: 'ativa', starts_at: T, ends_at: ends });
+    await PE.db.insert('campaigns', { name: gen.name, objective: 'estoque', audience: 'ativos', product_id: jaq.id, price, message: gen.message, caption: gen.caption, channel: 'WhatsApp', status: 'ativa', starts_at: T, ends_at: ends, slug: 'queima-jaqueta', landing: gen.landing });
+    if (!S.company.slug) await PE.db.saveCompany({ slug: 'loja-exemplo', store_enabled: true, store_settings: { whatsapp: '11999990000', headline: 'Moda com preço justo e entrega rápida', about: 'Peças selecionadas para todos os estilos. Peça pelo site e finalize pelo WhatsApp.', accent: '#f97316', show_prices: true } });
     await PE.db.insert('tasks', { title: 'Repor estoque de vestidos', category: 'estoque', priority: 'alta', status: 'aberta', due_date: PE.u.addDays(T, 1) });
     await PE.db.insert('tasks', { title: 'Postar promoção de fim de semana', category: 'marketing', priority: 'media', status: 'aberta', due_date: PE.u.addDays(T, 3) });
     await PE.db.insert('tasks', { title: 'Conferir maquininha de cartão', category: 'financeiro', priority: 'baixa', status: 'aberta', due_date: ago(1) });

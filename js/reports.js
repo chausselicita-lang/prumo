@@ -118,6 +118,10 @@ PE.reports = (function () {
         { title: 'Desempenho das campanhas', head: ['Campanha', 'Público', 'Enviados', 'Compraram', 'Conversão', 'Vendas após contato', 'Vendas do produto'], num: true, rows: camps.sort((a, b) => b.r.convValue - a.r.convValue).map(x => [x.c.name, `${E().mk.audienceLabel(S, x.c.audience)} (${x.size})`, String(x.r.sent), String(x.r.converted), x.r.sent ? U.pct(ratio(x.r.converted, x.r.sent), 0) : '—', U.brl(x.r.convValue), U.brl(x.r.prodRev)]) },
         { title: 'Recuperação de clientes por WhatsApp', head: ['Indicador', 'Valor'], num: true, rows: [['Lembretes enviados (30 dias)', String(wa.sent30)], ['Clientes sumidos que voltaram', String(wa.back)], ['Vendas recuperadas', U.brl(wa.value)]] },
         { title: 'Origem dos clientes', head: ['Origem', 'Clientes', 'Já compraram', 'Total comprado'], num: true, rows: Object.entries(origins).sort((a, b) => b[1].v - a[1].v).map(([k, o]) => [k, String(o.n), String(o.buyers), U.brl(o.v)]) },
+        ...((S.orders.length || S.store_events.length) ? [{ title: 'Loja online por link', head: ['Link', 'Página', 'Catálogo', 'Carrinho', 'Pedidos', 'Valor dos pedidos'], num: true, rows: [[null, 'Catálogo geral'], ...S.campaigns.map(c => [c.id, c.name])].map(([id, nome]) => {
+          const ev = k => S.store_events.filter(e => e.kind === k && (e.campaign_id || null) === id).length, od = S.orders.filter(o => (o.campaign_id || null) === id && o.status !== 'cancelado');
+          return [nome, String(ev('landing')), String(ev('catalog')), String(ev('cart')), String(od.length), U.brl(sum(od, o => Number(o.total)))];
+        }) }] : []),
         ...(autos.length ? [{ title: 'Automações (30 dias)', head: ['Automação', 'Situação', 'Execuções'], num: true, rows: autos }] : [])
       ]
     };

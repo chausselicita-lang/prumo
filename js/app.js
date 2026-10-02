@@ -7,7 +7,7 @@
   const PAY = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Boleto', 'Transferência', 'Fiado'];
   const STAGES = [['novo', 'Novo lead'], ['contato', 'Contato'], ['negociacao', 'Negociação'], ['proposta', 'Proposta'], ['venda', 'Venda'], ['posvenda', 'Pós-venda']];
   const NAV = [
-    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes', 'chat'], ['marketing', 'Marketing', 'megaphone'], ['automacoes', 'Automações', 'bolt'],
+    ['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['lembretes', 'Lembretes', 'chat'], ['marketing', 'Marketing', 'megaphone'], ['loja', 'Loja online', 'store'], ['automacoes', 'Automações', 'bolt'],
     ['financeiro', 'Financeiro', 'wallet'], ['produtos', 'Produtos', 'box'], ['precificacao', 'Precificação', 'calc'],
     ['tarefas', 'Tarefas', 'check'], ['equipe', 'Equipe', 'users'], ['atencao', 'Atenção', 'bell'], ['consultor', 'Consultor', 'spark'], ['relatorios', 'Relatórios', 'chart'], ['configuracoes', 'Configurações', 'gear']
   ];
@@ -132,12 +132,13 @@
   function shell() {
     root.innerHTML = `<div class="app">
       <aside class="sidebar"><div class="brand"><span class="logo">P</span><span>Prumo<small>${esc(S.company.name)}</small></span></div>
-        ${NAV.filter(n => PE.perm.canModule(n[0])).map(([id, label, ic]) => `${id === 'produtos' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : id === 'lembretes' ? '<span class="badge hidden" id="badge-lem" style="background:var(--orange)"></span>' : ''}</a>`).join('')}
+        ${NAV.filter(n => PE.perm.canModule(n[0])).map(([id, label, ic]) => `${id === 'produtos' || id === 'atencao' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#/${id}" data-nav="${id}">${UI.ico(ic)}<span>${label}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-desk"></span>' : id === 'lembretes' ? '<span class="badge hidden" id="badge-lem" style="background:var(--orange)"></span>' : id === 'loja' ? '<span class="badge hidden" id="badge-loja"></span>' : ''}</a>`).join('')}
         <div style="flex:1"></div><a class="nav-link" href="#" data-act="logout">${UI.ico('logout')}<span>Sair</span></a></aside>
       <div class="main"><header class="topbar"><button class="icon-btn menu-btn" data-act="drawer" aria-label="Abrir menu">${UI.ico('menu')}</button><div class="mobile-brand"><span class="logo" style="width:30px;height:30px;border-radius:10px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:16px">P</span>Prumo</div><div class="muted small grow" id="crumb"></div>
         <div class="row">${PE.db.mode === 'demo' ? `<select class="input" style="width:auto;padding:7px 10px;font-size:13px" data-act-change="demo-role" aria-label="Ver como">${Object.entries(PE.perm.roles).map(([k, r]) => `<option value="${k}" ${k === PE.perm.current() ? 'selected' : ''}>Ver como: ${r.label}</option>`).join('')}</select>` : ''}<button class="btn primary sm" data-act="sale-new">${UI.ico('plus', 16)} Registrar venda</button></div><button class="avatar orange topbar-avatar" data-act="user-menu" aria-label="Minha conta">${esc(U.initials(firstName()))}</button></header>
         <main class="content" id="content"></main></div>
       <button class="fab" data-act="sale-new" aria-label="Registrar venda">${UI.ico('plus', 26)}</button><div class="drawer-bg" data-act="drawer"></div><nav class="bottom-nav">${[['dashboard', 'Início', 'home'], ['clientes', 'Clientes', 'users'], ['vendas', 'Vendas', 'cart'], ['financeiro', 'Caixa', 'wallet'], ['atencao', 'Atenção', 'bell']].filter(x => PE.perm.canModule(x[0])).map(([id, l, ic]) => `<a href="#/${id}" data-nav="${id}">${UI.ico(ic, 22)}<span>${l}</span>${id === 'atencao' ? '<span class="badge hidden" id="badge-mob"></span>' : ''}</a>`).join('')}<a href="#" data-act="more">${UI.ico('dots', 22)}<span>Mais</span></a></nav></div>`;
+    if (!window.__ordersPoll) { window.__ordersPoll = setInterval(async () => { try { const n = await PE.db.refreshOrders(); if (n) { UI.toast(`${n} novo(s) pedido(s) na loja online!`); refresh(); } } catch { /* ignora */ } }, 45000); }
     route();
   }
   A['logout'] = async () => { UI.closeModal(); await PE.db.signOut(); renderAuth(); };
@@ -145,7 +146,7 @@
   A['user-menu'] = () => UI.modal({ title: firstName(), body: `<p class="muted small">${esc(PE.db.user?.email || '')} · ${esc(PE.perm.roles[PE.perm.current()].label)}</p><div class="list">${PE.perm.canModule('configuracoes') ? `<a class="item clickable" href="#/configuracoes" data-act="close-modal" style="text-decoration:none">${UI.ico('gear')}<span class="title">Configurações</span></a>` : ''}<a class="item clickable" href="#" data-act="logout" style="text-decoration:none">${UI.ico('logout')}<span class="title">Sair</span></a></div>` });
   A['more'] = () => UI.modal({ title: 'Mais opções', body: `<div class="list">${NAV.filter(n => !['dashboard', 'clientes', 'vendas', 'financeiro', 'atencao'].includes(n[0]) && PE.perm.canModule(n[0])).map(([id, l, ic]) => `<a class="item clickable" href="#/${id}" data-act="close-modal" style="text-decoration:none">${UI.ico(ic)}<span class="title">${l}</span></a>`).join('')}<a class="item clickable" href="#" data-act="logout" style="text-decoration:none">${UI.ico('logout')}<span class="title">Sair</span></a></div>` });
 
-  const DEFAULT_TABS = { clientes: 'clientes', financeiro: 'resumo', marketing: 'campanhas', relatorios: null };
+  const DEFAULT_TABS = { clientes: 'clientes', financeiro: 'resumo', marketing: 'campanhas', relatorios: null, loja: null };
   let lastView = null;
   /** Navega para um endereço interno (cada aba vira uma entrada no histórico, para o "voltar" do celular). */
   function go(hash) { if (location.hash === hash) refresh(); else location.hash = hash; }
@@ -170,6 +171,7 @@
     document.getElementById('crumb').textContent = NAV.find(n => n[0] === view)?.[1] || '';
     document.title = `${NAV.find(n => n[0] === view)?.[1] || 'Prumo'} · Prumo`;
     const urgent = E.alerts(S).filter(a => a.level === 'urgent').length;
+    const nOrd = S.orders.filter(o => o.status === 'novo').length; const bo = document.getElementById('badge-loja'); if (bo) { bo.textContent = nOrd; bo.classList.toggle('hidden', !nOrd); }
     const rem = E.reminders(S).length; const bl = document.getElementById('badge-lem'); if (bl) { bl.textContent = rem; bl.classList.toggle('hidden', !rem); }
     ['badge-desk', 'badge-mob'].forEach(id => { const b = document.getElementById(id); if (b) { b.textContent = urgent; b.classList.toggle('hidden', !urgent); } });
     c.innerHTML = VIEWS[view]();
@@ -352,7 +354,8 @@
       onMount: m => {
         const rows = m.querySelector('#sale-rows'), form = m.querySelector('#sale-form');
         const addRow = r => { rows.insertAdjacentHTML('beforeend', row(r)); };
-        addRow(pre.avulso ? { name: pre.avulso.name, price: pre.avulso.price, cost: 0 } : {});
+        if (pre.items && pre.items.length) pre.items.forEach(it => { addRow({ name: it.name, qty: it.qty, price: it.price, cost: it.cost }); if (it.product_id) rows.lastElementChild.querySelector('[data-f=prod]').value = it.product_id; });
+        else addRow(pre.avulso ? { name: pre.avulso.name, price: pre.avulso.price, cost: 0 } : {});
         m._addRow = addRow;
         const calc = () => {
           let gross = 0, cost = 0;
@@ -373,7 +376,8 @@
           if (!form.sold_at.value) return UI.toast('Informe a data.', 'err');
           const over = items.find(i => { const p = S.products.find(x => x.id === i.product_id); return p && !p.is_service && Number(p.stock) < i.qty; });
           await UI.run(async () => {
-            await PE.actions.registerSale({ customer_id: form.customer_id.value || null, sold_at: form.sold_at.value, payment_method: form.payment_method.value, status: form.status.value, discount: Number(form.discount.value) || 0, items, notes: form.notes.value.trim(), due_date: form.due_date.value });
+            const sale = await PE.actions.registerSale({ customer_id: form.customer_id.value || null, sold_at: form.sold_at.value, payment_method: form.payment_method.value, status: form.status.value, discount: Number(form.discount.value) || 0, items, notes: form.notes.value.trim(), due_date: form.due_date.value });
+            if (pre.orderId) await PE.db.update('orders', pre.orderId, { status: 'confirmado', sale_id: sale.id });
             UI.closeModal(); refresh(); UI.toast(over ? 'Venda registrada — atenção: o estoque ficou negativo.' : 'Venda registrada!');
           }, form.querySelector('[type=submit]'));
         });
@@ -450,7 +454,8 @@
     { name: 'cost', label: 'Custo (R$)', type: 'number', step: '0.01', min: 0, required: true }, { name: 'price', label: 'Preço de venda (R$)', type: 'number', step: '0.01', min: 0, required: true },
     { name: 'fee_pct', label: 'Taxas sobre a venda (%)', type: 'number', step: '0.01', min: 0, hint: 'Cartão, comissão, impostos…' }, { name: 'barcode', label: 'Código de barras' },
     { name: 'stock', label: 'Estoque atual', type: 'number', step: 'any' }, { name: 'min_stock', label: 'Estoque mínimo', type: 'number', step: 'any' },
-    { name: 'description', label: 'Descrição', type: 'textarea', full: true }, { name: 'is_service', label: 'Tipo', type: 'checkbox', checkLabel: 'É um serviço (não controla estoque)' }
+    { name: 'description', label: 'Descrição', type: 'textarea', full: true }, { name: 'is_service', label: 'Tipo', type: 'checkbox', checkLabel: 'É um serviço (não controla estoque)' },
+    { name: 'published', label: 'Loja online', type: 'checkbox', checkLabel: 'Mostrar este produto na loja online' }
   ];
   const cleanProd = v => ({ ...v, cost: v.cost || 0, price: v.price || 0, fee_pct: v.fee_pct || 0, stock: v.stock || 0, min_stock: v.min_stock || 0, active: true });
   A['prod-new'] = () => UI.form({ title: 'Novo produto', fields: prodFields, values: { fee_pct: 0, stock: 0, min_stock: 0 }, onSubmit: async v => { await PE.db.insert('products', cleanProd(v)); UI.closeModal(); refresh(); UI.toast('Produto cadastrado.'); } });
@@ -652,7 +657,10 @@
       onSubmit: async v => {
         const product = S.products.find(p => p.id === v.product_id) || null;
         const gen = MK.generate(S, { objective: v.objective, product, price: v.price, audience: v.audience, channel: v.channel, starts: v.starts_at, ends: v.ends_at, link: v.link, occasion: d.occasion });
-        const camp = await PE.db.insert('campaigns', { name: gen.name, objective: v.objective, audience: v.audience, product_id: product?.id || null, price: v.price || null, message: gen.message, caption: gen.caption, channel: v.channel, status: 'ativa', starts_at: v.starts_at, ends_at: v.ends_at || null });
+        const slugBase = slugify(gen.name).slice(0, 28) || 'campanha'; let cslug = slugBase, ci = 2;
+        while (S.campaigns.some(x => x.slug === cslug)) cslug = `${slugBase}-${ci++}`;
+        const link = shopOn() || PE.db.mode === 'demo' ? shopLink({ slug: cslug }) : null;
+        const camp = await PE.db.insert('campaigns', { name: gen.name, objective: v.objective, audience: v.audience, product_id: product?.id || null, price: v.price || null, message: link ? `${gen.message}\nVeja aqui: ${link}` : gen.message, caption: link ? `${gen.caption}\n\n🔗 ${link}` : gen.caption, channel: v.channel, status: 'ativa', starts_at: v.starts_at, ends_at: v.ends_at || null, slug: cslug, landing: gen.landing });
         UI.closeModal({ noBack: true }); go('#/marketing?tab=campanhas');
         UI.toast('Campanha preparada!'); A['camp-open']({ id: camp.id });
       } });
@@ -666,6 +674,7 @@
 
   A['camp-open'] = d => {
     const c = S.campaigns.find(x => x.id === d.id); if (!c) return;
+    if (!c.slug && !d._noSlug) { ensureCampSlug(c).then(() => A['camp-open']({ id: c.id }), () => A['camp-open']({ id: c.id, _noSlug: true })); return; }
     const product = S.products.find(p => p.id === c.product_id), aud = MK.audience(S, c.audience), m = MK.margin(product, c.price);
     const kpis = () => { const r = MK.results(S, c); return `${kpi('Contatos enviados', `${r.sent}/${aud.length}`, '', 'orange')}${kpi('Contatados que compraram', r.converted, r.converted ? `<span class="up">${U.brl0(r.convValue)}</span>` : '<span class="muted">após o contato</span>', 'green')}${product ? kpi('Vendas do produto', U.brl0(r.prodRev), `<span class="muted">${r.prodQty} un. no período</span>`, 'black') : ''}`; };
     const audRow = (cu, sent) => `<div class="item" data-cust-row="${cu.id}"><div class="avatar">${esc(U.initials(cu.name))}</div><div class="grow"><div class="title">${esc(cu.name)}</div><div class="sub">${esc(cu.city || '')}${wa(cu) ? '' : ' · sem WhatsApp'}</div></div>${sent ? UI.chip('Enviado', 'green') : wa(cu) ? `<button class="btn sm primary" data-act="camp-send" data-camp="${c.id}" data-cust="${cu.id}">WhatsApp</button>` : UI.chip('Sem telefone', 'yellow')}</div>`;
@@ -677,6 +686,7 @@
       <div class="field"><label>Legenda para Instagram / Facebook</label><textarea class="input" id="camp-cap" rows="6">${esc(c.caption || '')}</textarea></div>
       <div class="row wrap"><button class="btn primary sm" data-act="camp-save-text" data-id="${c.id}">Salvar textos</button><button class="btn ghost sm" data-act="copy-el" data-el="camp-msg">Copiar mensagem</button><button class="btn ghost sm" data-act="copy-el" data-el="camp-cap">Copiar legenda</button></div>
       <div><div class="row between"><h3>Público (${aud.length})</h3><span class="small muted">Você revisa e envia cada mensagem</span></div><div class="list" style="margin-top:8px;max-height:320px;overflow-y:auto">${aud.length ? aud.slice(0, 100).map(cu => audRow(cu, r0.sentIds.has(cu.id))).join('') : '<p class="muted small">Nenhum cliente neste público ainda.</p>'}</div></div>
+      ${shopBlock(c)}
       <div class="row wrap"><button class="btn sm ghost" data-act="camp-edit" data-id="${c.id}">Editar dados</button><button class="btn sm ghost" data-act="camp-status" data-id="${c.id}">${c.status === 'encerrada' ? 'Reativar' : 'Encerrar campanha'}</button><button class="btn sm danger" data-act="camp-del" data-id="${c.id}">Excluir</button></div>` });
   };
   A['copy-el'] = async d => { try { await navigator.clipboard.writeText(document.getElementById(d.el).value); UI.toast('Copiado.'); } catch { UI.toast('Não foi possível copiar.', 'err'); } };
@@ -697,6 +707,169 @@
   };
   A['camp-status'] = async d => { const c = S.campaigns.find(x => x.id === d.id); await PE.db.update('campaigns', c.id, { status: c.status === 'encerrada' ? 'ativa' : 'encerrada' }); UI.closeModal(); refresh(); UI.toast(c.status === 'encerrada' ? 'Campanha reativada.' : 'Campanha encerrada.'); };
   A['camp-del'] = d => { UI.closeModal(); UI.confirm('Excluir esta campanha e o histórico de envios dela?', async () => { for (const n of S.notifications.filter(n => n.alert_key.startsWith(`cp:${d.id}:`))) await PE.db.remove('notifications', n.id); await PE.db.remove('campaigns', d.id); refresh(); UI.toast('Campanha excluída.'); }); };
+
+  /* ---------- LOJA ONLINE (catálogo + página da campanha + pedidos) ---------- */
+  const ORDER_STATUS = { novo: ['Novo', 'red'], atendimento: ['Em atendimento', 'yellow'], confirmado: ['Confirmado', 'green'], cancelado: ['Cancelado', ''] };
+  const ACCENTS = ['#f97316', '#111113', '#16a34a', '#2563eb', '#db2777', '#7c3aed'];
+  const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+  const slugify = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  const storeSettings = () => S.company.store_settings || {};
+  const shopOn = () => !!S.company.store_enabled && !!S.company.slug;
+  const shopBase = () => location.origin + location.pathname.replace(/[^/]*$/, '') + 'loja.html';
+  /** Endereço público da loja (ou da página de uma campanha). No modo demonstração aponta para a pré-visualização local. */
+  const shopLink = camp => {
+    const q = PE.db.mode === 'demo' ? ['demo=1'] : ['l=' + S.company.slug];
+    if (camp && camp.slug) q.push('c=' + camp.slug);
+    return `${shopBase()}?${q.join('&')}`;
+  };
+  const shopStats = campId => {
+    const ev = S.store_events.filter(e => (e.campaign_id || null) === (campId || null)), ord = S.orders.filter(o => (o.campaign_id || null) === (campId || null) && o.status !== 'cancelado');
+    const n = k => ev.filter(e => e.kind === k).length;
+    return { landing: n('landing'), catalog: n('catalog'), cart: n('cart'), orders: ord.length, value: ord.reduce((t, o) => t + Number(o.total), 0) };
+  };
+  const timeAgo = iso => { const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`; };
+  const lojaTabsFor = () => PE.perm.lojaTabs[PE.perm.current()] || [];
+  const LOJA_LABELS = { pedidos: 'Pedidos', catalogo: 'Catálogo', links: 'Links e resultados', config: 'Configuração' };
+  const thumb = p => (p.image_url ? `<img src="${esc(p.image_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` : esc(U.initials(p.name)));
+  const uploadBtn = (label, kind, id) => `<label class="btn sm ghost" style="cursor:pointer">${label}<input type="file" accept="image/*" hidden data-act-change="img-upload" data-kind="${kind}" data-id="${id || ''}"></label>`;
+
+  const linkRow = (label, url, hint) => `<div class="field"><label>${esc(label)}</label><div class="row wrap"><input class="input grow" readonly value="${esc(url)}" onfocus="this.select()" style="min-width:200px"><button class="btn sm primary" data-act="copy-text" data-text="${esc(url)}">Copiar</button><a class="btn sm ghost" href="${esc(url)}" target="_blank" rel="noopener">Abrir</a><button class="btn sm ghost" data-act="share-wa" data-text="${esc(url)}">WhatsApp</button></div>${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</div>`;
+  A['copy-text'] = async d => { try { await navigator.clipboard.writeText(d.text); UI.toast('Link copiado.'); } catch { UI.toast('Não foi possível copiar. Selecione e copie manualmente.', 'err'); } };
+  A['share-wa'] = d => window.open(`https://wa.me/?text=${encodeURIComponent(d.text)}`, '_blank', 'noopener');
+
+  VIEWS.loja = () => {
+    const allowed = lojaTabsFor(); if (!allowed.includes(tabs.loja)) tabs.loja = allowed[0];
+    const tab = tabs.loja, newCount = S.orders.filter(o => o.status === 'novo').length;
+    const head = `<div class="page-head"><div><h1>Loja online</h1><p class="muted">Catálogo e página de campanha com pedido direto no Prumo.</p></div>${shopOn() || PE.db.mode === 'demo' ? `<a class="btn ghost" href="${esc(shopLink())}" target="_blank" rel="noopener">Ver minha loja</a>` : ''}</div>
+      <div class="filters">${allowed.map(k => `<button class="pill ${tab === k ? 'active' : ''}" data-act="tab" data-v="loja" data-t="${k}">${LOJA_LABELS[k]}${k === 'pedidos' && newCount ? ` (${newCount})` : ''}</button>`).join('')}</div>`;
+    if (!shopOn() && tab !== 'config' && PE.db.mode !== 'demo') return head + `<div class="card">${UI.empty('🛍️', 'Sua loja ainda não está no ar', 'Defina o endereço, o WhatsApp e escolha os produtos que aparecem. Leva poucos minutos.', PE.perm.can('store.config') ? '<a class="btn primary" href="#/loja?tab=config">Configurar loja</a>' : '<p class="small muted">Peça ao administrador para configurar.</p>')}</div>`;
+
+    if (tab === 'pedidos') {
+      const f = tabs.lojaStatus || 'novo', list = S.orders.filter(o => f === 'todos' || o.status === f);
+      const campName = id => S.campaigns.find(c => c.id === id)?.name;
+      return head + `<div class="filters">${[['novo', 'Novos'], ['atendimento', 'Em atendimento'], ['confirmado', 'Confirmados'], ['cancelado', 'Cancelados'], ['todos', 'Todos']].map(([k, l]) => `<button class="pill ${f === k ? 'active' : ''}" data-act="order-filter" data-k="${k}">${l}</button>`).join('')}</div>
+        <div class="grid cols-5" style="grid-template-columns:repeat(3,minmax(0,1fr))">${kpi('Pedidos novos', newCount, '', newCount ? 'red' : 'orange')}${kpi('Pedidos no mês', S.orders.filter(o => o.created_at.slice(0, 7) === U.today().slice(0, 7) && o.status !== 'cancelado').length)}${kpi('Valor confirmado no mês', U.brl0(S.orders.filter(o => o.status === 'confirmado' && o.created_at.slice(0, 7) === U.today().slice(0, 7)).reduce((t, o) => t + Number(o.total), 0)), '', 'green')}</div>
+        ${list.length ? `<div class="list">${list.map(o => `<div class="item clickable" data-act="order-open" data-id="${o.id}"><div class="avatar ${o.status === 'novo' ? 'orange' : ''}">${esc(U.initials(o.customer_name))}</div><div class="grow"><div class="title">#${esc(o.code)} · ${esc(o.customer_name)}</div><div class="sub">${esc((o.items || []).map(i => `${i.qty}× ${i.name}`).join(', '))}</div><div class="sub">${timeAgo(o.created_at)}${campName(o.campaign_id) ? ' · 📣 ' + esc(campName(o.campaign_id)) : ''}</div></div><div class="right"><div class="title num">${U.brl(o.total)}</div>${UI.chip(ORDER_STATUS[o.status][0], ORDER_STATUS[o.status][1])}</div></div>`).join('')}</div>`
+          : `<div class="card">${UI.empty('📥', f === 'novo' ? 'Nenhum pedido novo' : 'Nada por aqui', 'Quando um cliente enviar um pedido pela loja, ele aparece aqui na hora (o app confere a cada minuto).')}</div>`}`;
+    }
+
+    if (tab === 'catalogo') {
+      const prods = S.products.filter(p => p.active !== false).sort((a, b) => a.name.localeCompare(b.name)), pub = prods.filter(p => p.published).length;
+      const canEdit = PE.perm.can('store.catalog');
+      return head + `<div class="card row between wrap"><div><strong>${pub} de ${prods.length} produtos publicados</strong><p class="small muted">Só os publicados aparecem na loja. Custo e margem nunca são mostrados.</p></div>${canEdit ? '<button class="btn sm soft" data-act="pub-all">Publicar todos com preço</button>' : ''}</div>
+        ${prods.length ? `<div class="list">${prods.map(p => `<div class="item"><div class="avatar" style="width:54px;height:54px;border-radius:14px;overflow:hidden;padding:0">${thumb(p)}</div><div class="grow"><div class="title">${esc(p.name)}</div><div class="sub">${U.brl(p.price)}${!p.is_service ? ` · estoque ${Number(p.stock)}` : ''}${!p.image_url ? ' · <span class="down">sem foto</span>' : ''}</div></div>
+          ${canEdit ? `<div class="row wrap" style="justify-content:flex-end">${uploadBtn(p.image_url ? 'Trocar foto' : 'Foto', 'product', p.id)}<button class="btn sm ${p.published ? 'primary' : 'ghost'}" data-act="pub-toggle" data-id="${p.id}">${p.published ? '✓ Publicado' : 'Publicar'}</button></div>` : (p.published ? UI.chip('Publicado', 'green') : '')}</div>`).join('')}</div>`
+          : `<div class="card">${UI.empty('📦', 'Cadastre produtos primeiro', 'Os produtos vêm da tela Produtos.', '<a class="btn primary" href="#/produtos">Ir para Produtos</a>')}</div>`}`;
+    }
+
+    if (tab === 'links') {
+      setTimeout(() => { const b = document.getElementById('qr-box'); if (b && window.QRCode && (shopOn() || PE.db.mode === 'demo')) { b.innerHTML = ''; new QRCode(b, { text: shopLink(), width: 150, height: 150 }); } }, 0);
+      const geral = shopStats(null), camps = [...S.campaigns].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      const row = (name, s, camp) => `<tr><td>${esc(name)}</td><td class="right num">${s.landing}</td><td class="right num">${s.catalog}</td><td class="right num">${s.cart}</td><td class="right num">${s.orders}</td><td class="right num">${U.brl(s.value)}</td>${camp ? `<td><button class="btn sm ghost" data-act="camp-open" data-id="${camp.id}">Abrir</button></td>` : '<td></td>'}</tr>`;
+      return head + `<div class="card stack">${shopOn() || PE.db.mode === 'demo' ? linkRow('Link do catálogo (para a bio do Instagram, WhatsApp e cartão)', shopLink(), 'Mostra todos os produtos publicados.') : '<p class="muted">Ative a loja na aba Configuração para gerar os links.</p>'}<div class="row wrap"><div id="qr-box"></div><p class="small muted" style="max-width:260px">QR Code do catálogo: imprima e cole na loja física ou no balcão.</p></div></div>
+        <div class="card"><div class="card-title"><h2>Resultado por link</h2></div>${PE.db.mode === 'demo' ? '<p class="small muted" style="margin-bottom:8px">No modo demonstração as visitas não são contadas; os pedidos sim.</p>' : ''}
+          <div class="table-wrap"><table><thead><tr><th>Link</th><th class="right">Página</th><th class="right">Catálogo</th><th class="right">Carrinho</th><th class="right">Pedidos</th><th class="right">Valor</th><th></th></tr></thead><tbody>${row('Catálogo geral', geral, null)}${camps.map(c => row('📣 ' + c.name, shopStats(c.id), c)).join('')}</tbody></table></div>
+          <p class="small muted" style="margin-top:8px">Cada campanha tem o seu link: abra a campanha em Marketing para copiar e editar a página.</p></div>`;
+    }
+
+    // Configuração
+    const st = storeSettings(), can = PE.perm.can('store.config');
+    return head + `<div class="card stack"><div class="card-title"><h2>Dados da loja</h2>${S.company.store_enabled ? UI.chip('No ar', 'green') : UI.chip('Desligada')}</div>
+      ${can ? '' : '<div class="alert info"><span class="dot"></span><div class="a-detail">Só o administrador altera estas configurações.</div></div>'}
+      <form id="store-form" class="stack" novalidate><div class="form-grid">
+        <div class="field full"><label class="row" style="text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink);font-weight:600"><input type="checkbox" name="enabled" ${S.company.store_enabled ? 'checked' : ''} ${can ? '' : 'disabled'}> Loja online ligada (clientes podem ver e pedir)</label></div>
+        <div class="field full"><label>Endereço da loja</label><input class="input" name="slug" value="${esc(S.company.slug || slugify(S.company.name))}" placeholder="minha-loja" ${can ? '' : 'disabled'}><span class="hint">Só letras minúsculas, números e hífen. O link fica: ${esc(shopBase())}?l=<strong>este-endereço</strong></span></div>
+        <div class="field"><label>WhatsApp para receber pedidos</label><input class="input" name="whatsapp" type="tel" value="${esc(st.whatsapp || '')}" placeholder="(11) 99999-9999" ${can ? '' : 'disabled'}></div>
+        <div class="field"><label>Instagram (opcional)</label><input class="input" name="instagram" value="${esc(st.instagram || '')}" placeholder="@minhaloja" ${can ? '' : 'disabled'}></div>
+        <div class="field full"><label>Frase de destaque</label><input class="input" name="headline" value="${esc(st.headline || '')}" placeholder="Ex.: Moda feminina com entrega rápida" ${can ? '' : 'disabled'}></div>
+        <div class="field full"><label>Sobre a loja</label><textarea class="input" name="about" ${can ? '' : 'disabled'}>${esc(st.about || '')}</textarea></div>
+        <div class="field full"><label>Cor da loja</label><div class="row wrap">${ACCENTS.map(c => `<label style="cursor:pointer"><input type="radio" name="accent" value="${c}" ${(st.accent || '#f97316') === c ? 'checked' : ''} ${can ? '' : 'disabled'} hidden><span class="accent-dot" style="background:${c}"></span></label>`).join('')}</div></div>
+        <div class="field full"><label class="row" style="text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink);font-weight:600"><input type="checkbox" name="show_prices" ${st.show_prices === false ? '' : 'checked'} ${can ? '' : 'disabled'}> Mostrar preços na loja</label></div>
+        <div class="field full"><label>Logotipo</label><div class="row wrap"><div class="avatar" style="width:54px;height:54px;border-radius:14px;overflow:hidden;padding:0">${st.logo_url ? `<img src="${esc(st.logo_url)}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(U.initials(S.company.name))}</div>${can ? uploadBtn(st.logo_url ? 'Trocar logotipo' : 'Enviar logotipo', 'logo', '') : ''}</div></div>
+      </div>${can ? '<button class="btn primary" type="submit">Salvar loja</button>' : ''}</form></div>`;
+  };
+  document.addEventListener('submit', async e => {
+    if (e.target.id !== 'store-form') return; e.preventDefault();
+    if (!PE.perm.can('store.config')) return UI.toast('Só o administrador altera a loja.', 'err');
+    const f = e.target, slug = slugify(f.slug.value), enabled = f.enabled.checked, wa = U.digits(f.whatsapp.value);
+    if (!SLUG_RE.test(slug)) return UI.toast('Endereço inválido: use de 3 a 40 letras minúsculas, números ou hífen.', 'err');
+    if (enabled && wa.length < 10) return UI.toast('Informe o WhatsApp (com DDD) para receber os pedidos.', 'err');
+    await UI.run(async () => {
+      try {
+        await PE.db.saveCompany({ slug, store_enabled: enabled, store_settings: { ...storeSettings(), whatsapp: wa, instagram: f.instagram.value.trim().replace(/^@?/, '@').replace(/^@$/, ''), headline: f.headline.value.trim(), about: f.about.value.trim(), accent: (f.accent.value || '#f97316'), show_prices: f.show_prices.checked } });
+      } catch (err) { throw new Error(err.code === '23505' || /duplicate|unique/i.test(err.message) ? 'Esse endereço já está em uso. Escolha outro.' : err.message); }
+      refresh(); UI.toast(enabled ? 'Loja salva e no ar!' : 'Loja salva (desligada).');
+    }, f.querySelector('[type=submit]'));
+  });
+  A['order-filter'] = d => { tabs.lojaStatus = d.k; refresh(); };
+  A['pub-toggle'] = async d => { const p = S.products.find(x => x.id === d.id); await PE.db.update('products', p.id, { published: !p.published }); refresh(); };
+  A['pub-all'] = async () => { const list = S.products.filter(p => p.active !== false && !p.published && Number(p.price) > 0); for (const p of list) await PE.db.update('products', p.id, { published: true }); refresh(); UI.toast(`${list.length} produto(s) publicado(s).`); };
+
+  document.addEventListener('change', async e => {
+    if (e.target.dataset?.actChange !== 'img-upload') return;
+    const file = e.target.files && e.target.files[0]; if (!file) return; const k = e.target.dataset.kind, rid = e.target.dataset.id;
+    const need = k === 'product' ? 'store.catalog' : k === 'logo' ? 'store.config' : 'campaign.write';
+    if (!PE.perm.can(need)) { e.target.value = ''; return UI.toast('Seu perfil não tem permissão para isso.', 'err'); }
+    UI.toast('Enviando foto…');
+    await UI.run(async () => {
+      const url = await PE.db.uploadImage(file, k === 'product' ? 'products' : k === 'logo' ? 'logo' : 'landing', k === 'logo' ? 400 : 900);
+      if (k === 'product') await PE.db.update('products', rid, { image_url: url });
+      else if (k === 'logo') await PE.db.saveCompany({ store_settings: { ...storeSettings(), logo_url: url } });
+      else { const c = S.campaigns.find(x => x.id === rid); await PE.db.update('campaigns', rid, { landing: { ...(c.landing || {}), image: url } }); }
+      UI.toast('Foto salva.'); refresh(); if (k === 'landing') A['camp-open']({ id: rid });
+    });
+    e.target.value = '';
+  });
+
+  /* Pedidos */
+  A['order-open'] = d => {
+    const o = S.orders.find(x => x.id === d.id), camp = S.campaigns.find(c => c.id === o.campaign_id), cu = S.customers.find(c => c.id === o.customer_id);
+    UI.modal({ title: `Pedido #${o.code}`, wide: true, body: `<div class="row wrap">${UI.chip(ORDER_STATUS[o.status][0], ORDER_STATUS[o.status][1])}<span class="small muted">${timeAgo(o.created_at)}</span>${camp ? UI.chip('📣 ' + camp.name) : ''}</div>
+      <div class="card flat"><strong>${esc(o.customer_name)}</strong><div class="small muted">${esc(U.fmtDate(o.created_at.slice(0, 10)))} · WhatsApp ${esc(o.phone)}</div>${o.notes ? `<p style="margin-top:8px">“${esc(o.notes)}”</p>` : ''}</div>
+      <div class="list">${(o.items || []).map(i => `<div class="item"><span class="grow">${i.qty}× ${esc(i.name)}</span><strong class="num">${U.brl(i.qty * i.unit_price)}</strong></div>`).join('')}</div>
+      <div class="row between"><strong>Total</strong><strong class="num" style="font-size:22px">${U.brl(o.total)}</strong></div>
+      ${o.sale_id ? '<div class="alert opportunity"><span class="dot"></span><div class="a-detail">Este pedido já virou uma venda no Prumo.</div></div>' : ''}
+      <div class="row wrap"><button class="btn primary" data-act="order-wa" data-id="${o.id}">Atender no WhatsApp</button>${!o.sale_id && o.status !== 'cancelado' ? `<button class="btn ghost" data-act="order-sale" data-id="${o.id}">Converter em venda</button>` : ''}</div>
+      <div class="row wrap">${['novo', 'atendimento', 'cancelado'].filter(s => s !== o.status && !(s === 'novo' && o.sale_id)).map(s => `<button class="btn sm ghost" data-act="order-status" data-id="${o.id}" data-s="${s}">Marcar como ${ORDER_STATUS[s][0].toLowerCase()}</button>`).join('')}${cu ? `<a class="btn sm ghost" href="#/clientes" data-act="close-modal">Ver cliente</a>` : ''}</div>` });
+  };
+  A['order-status'] = async d => { await PE.db.update('orders', d.id, { status: d.s }); UI.closeModal(); refresh(); UI.toast('Pedido atualizado.'); };
+  A['order-wa'] = async d => {
+    const o = S.orders.find(x => x.id === d.id), n = U.digits(o.phone), num = n.length <= 11 ? '55' + n : n;
+    const msg = `Olá, ${firstOf(o.customer_name)}! Recebi o seu pedido #${o.code} (${(o.items || []).map(i => `${i.qty}x ${i.name}`).join(', ')}), total ${U.brl(o.total)}. Posso confirmar? Como prefere pagar e receber?`;
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+    if (o.status === 'novo') { await PE.db.update('orders', o.id, { status: 'atendimento' }); UI.closeModal(); refresh(); }
+  };
+  A['order-sale'] = d => {
+    const o = S.orders.find(x => x.id === d.id); UI.closeModal({ noBack: true });
+    openSaleForm({ customer_id: o.customer_id, orderId: o.id, items: (o.items || []).map(i => ({ product_id: i.product_id, name: i.name, qty: i.qty, price: i.unit_price, cost: i.unit_cost })) });
+  };
+
+  /* Página da campanha (dentro da janela da campanha) */
+  function shopBlock(c) {
+    if (!shopOn() && PE.db.mode !== 'demo') return `<div class="alert attention"><span class="dot"></span><div><div class="a-title">A loja online ainda não está no ar</div><div class="a-detail">Ative em Loja online › Configuração para gerar o link desta campanha.</div><div class="a-actions"><a class="btn sm ghost" href="#/loja?tab=config" data-act="close-modal">Configurar loja</a></div></div></div>`;
+    const L = c.landing || {}, s = shopStats(c.id);
+    return `<div class="card flat stack"><div class="card-title"><h3>Página e links da campanha</h3>${UI.chip(`${s.landing} visitas · ${s.orders} pedidos`, s.orders ? 'green' : '')}</div>
+      ${linkRow('Link da campanha (página da oferta + catálogo)', shopLink(c), 'Cole no Instagram, Facebook ou WhatsApp.')}${linkRow('Link só do catálogo', shopLink(null))}
+      <details><summary class="btn sm ghost" style="display:inline-flex">Editar a página da campanha</summary><div class="stack" style="margin-top:10px">
+        <div class="field"><label>Título</label><input class="input" id="ld-headline" value="${esc(L.headline || '')}" maxlength="90"></div>
+        <div class="field"><label>Subtítulo</label><input class="input" id="ld-sub" value="${esc(L.subheadline || '')}" maxlength="160"></div>
+        <div class="field"><label>Texto do botão</label><input class="input" id="ld-cta" value="${esc(L.cta || '')}" maxlength="30" placeholder="Quero aproveitar"></div>
+        <div class="field"><label>Vantagens (uma por linha, até 5)</label><textarea class="input" id="ld-bullets" rows="4">${esc((L.bullets || []).join('\n'))}</textarea></div>
+        <div class="row wrap">${L.image ? `<img src="${esc(L.image)}" alt="" style="width:96px;height:64px;object-fit:cover;border-radius:10px">` : ''}${uploadBtn(L.image ? 'Trocar imagem de capa' : 'Enviar imagem de capa', 'landing', c.id)}<button class="btn sm primary" data-act="landing-save" data-id="${c.id}">Salvar página</button></div></div></details></div>`;
+  }
+  A['landing-save'] = async d => {
+    const g = id => document.getElementById(id).value.trim(), c = S.campaigns.find(x => x.id === d.id);
+    await PE.db.update('campaigns', c.id, { landing: { ...(c.landing || {}), headline: g('ld-headline'), subheadline: g('ld-sub'), cta: g('ld-cta'), bullets: document.getElementById('ld-bullets').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 5) } });
+    UI.toast('Página da campanha salva.');
+  };
+  /** Campanhas antigas ganham endereço próprio ao serem abertas. */
+  async function ensureCampSlug(c) {
+    if (c.slug) return c;
+    let base = slugify(c.name).slice(0, 28) || 'campanha', slug = base, i = 2;
+    while (S.campaigns.some(x => x.slug === slug)) slug = `${base}-${i++}`;
+    const gen = MK.generate(S, { objective: c.objective, product: S.products.find(p => p.id === c.product_id), price: c.price, audience: c.audience, channel: c.channel, starts: c.starts_at, ends: c.ends_at });
+    return PE.db.update('campaigns', c.id, { slug, landing: c.landing && c.landing.headline ? c.landing : gen.landing });
+  }
 
   /* ---------- RELATÓRIOS ---------- */
   tabs.relatorios = null;
@@ -869,6 +1042,7 @@
   /* ---------- PERMISSÕES NA INTERFACE ---------- */
   // Ação da tela -> permissão exigida. O banco também impõe (RLS); aqui só evitamos botões que não funcionariam.
   const PERM_ACTS = {
+    'pub-toggle': 'store.catalog', 'pub-all': 'store.catalog', 'order-status': 'order.manage', 'order-wa': 'order.manage', 'order-sale': 'order.manage', 'landing-save': 'campaign.write',
     'auto-new': 'auto.write', 'auto-edit': 'auto.write', 'auto-preset': 'auto.write', 'auto-toggle': 'auto.write', 'auto-del': 'auto.write', 'auto-scan': 'auto.write',
     'sale-new': 'sale.create', 'sale-cancel': 'sale.cancel', 'sale-receive': 'sale.receive',
     'cust-new': 'customer.write', 'cust-edit': 'customer.write', 'cust-del': 'customer.delete', 'cust-followup': 'customer.write',

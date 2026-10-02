@@ -390,3 +390,8 @@ td { padding: 12px 10px; border-bottom: 1px solid var(--silver-100); }
   .item { padding: 11px 13px; }
   h1 { font-size: 26px; }
 }
+
+/* Loja online: seletor de cor */
+.accent-dot { display: inline-block; width: 38px; height: 38px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--silver); cursor: pointer; }
+input:checked + .accent-dot { box-shadow: 0 0 0 3px var(--ink); }
+#qr-box img, #qr-box canvas { border-radius: 8px; }

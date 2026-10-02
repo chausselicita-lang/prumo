@@ -17,6 +17,7 @@ window.PE = window.PE || {};
       recebimento_atrasado: { label: 'Um recebimento estiver atrasado', kind: 'condição', days: 3, daysLabel: 'Dias de atraso' },
       aniversario: { label: 'For aniversário de um cliente', kind: 'condição', days: 0, daysLabel: 'Dias de antecedência (0 = no dia)' },
       estoque_baixo: { label: 'O estoque de um produto ficar abaixo do mínimo', kind: 'condição' },
+      pedido_novo: { label: 'Chegar um pedido novo na loja online', kind: 'condição' },
       proposta_parada: { label: 'Uma proposta ficar dias sem resposta', kind: 'condição', days: 3, daysLabel: 'Dias sem resposta' }
     },
     actionTypes: { criar_tarefa: 'Criar uma tarefa', criar_followup: 'Agendar follow-up com o cliente', criar_oportunidade: 'Criar uma oportunidade de venda' },
@@ -30,6 +31,7 @@ window.PE = window.PE || {};
       { key: 'cobranca', name: 'Recebimento atrasado → tarefa de cobrança', why: 'Cobra a tempo e protege o caixa.', trigger: { type: 'recebimento_atrasado', params: { days: 3 } }, actions: [{ type: 'criar_tarefa', params: { title: 'Cobrar {cliente}: {valor} venceu em {vencimento}', category: 'financeiro', priority: 'alta', due_days: 0 } }] },
       { key: 'aniversario', name: 'Aniversário → tarefa de mensagem', why: 'Um parabéns aproxima e gera venda.', trigger: { type: 'aniversario', params: { days: 0 } }, actions: [{ type: 'criar_tarefa', params: { title: 'Parabenizar {cliente} pelo aniversário', category: 'vendas', priority: 'media', due_days: 0 } }] },
       { key: 'proposta', name: 'Proposta parada → follow-up', why: 'Nenhuma proposta fica esquecida.', trigger: { type: 'proposta_parada', params: { days: 3 } }, actions: [{ type: 'criar_followup', params: { title: 'Cobrar resposta da proposta "{titulo}" de {cliente}', due_days: 0 } }] },
+      { key: 'pedido', name: 'Pedido da loja → tarefa de atendimento', why: 'Todo pedido novo vira tarefa para responder rápido.', trigger: { type: 'pedido_novo' }, actions: [{ type: 'criar_tarefa', params: { title: 'Atender pedido #{titulo} de {cliente} ({valor})', category: 'vendas', priority: 'alta', due_days: 0 } }] },
       { key: 'novo', name: 'Novo cliente → follow-up em 2 dias', why: 'Boas-vindas rápidas aumentam a recompra.', trigger: { type: 'cliente_cadastrado' }, actions: [{ type: 'criar_followup', params: { title: 'Dar boas-vindas a {cliente}', due_days: 2 } }] }
     ],
 
@@ -41,7 +43,7 @@ window.PE = window.PE || {};
         oportunidade_etapa: `uma oportunidade for movida para ${t.params?.stage ? '“' + STAGE_LABEL[t.params.stage] + '”' : 'qualquer etapa'}`,
         cliente_sem_comprar: `um cliente ficar ${d ?? 90} dias sem comprar`, conta_vencendo: `uma conta a pagar vencer em até ${d ?? 3} dias`,
         recebimento_atrasado: `um recebimento atrasar ${d ?? 3} dias`, aniversario: d ? `faltar ${d} dias para o aniversário de um cliente` : 'for aniversário de um cliente',
-        estoque_baixo: 'o estoque de um produto ficar abaixo do mínimo', proposta_parada: `uma proposta ficar ${d ?? 3} dias sem resposta`
+        estoque_baixo: 'o estoque de um produto ficar abaixo do mínimo', pedido_novo: 'chegar um pedido novo na loja online', proposta_parada: `uma proposta ficar ${d ?? 3} dias sem resposta`
       })[t.type] || t.type;
     },
     describeAction(a) {
@@ -112,6 +114,7 @@ window.PE = window.PE || {};
       if (type === 'conta_vencendo') S.transactions.filter(t => t.kind === 'despesa' && !t.paid_date && t.due_date >= T && t.due_date <= U.addDays(T, days)).forEach(t => out.push({ id: t.id, cooldown: 365, ctx: { descricao: t.description, valor: Number(t.amount), vencimento: t.due_date, dias: U.daysBetween(T, t.due_date) } }));
       if (type === 'recebimento_atrasado') S.transactions.filter(t => t.kind === 'receita' && !t.paid_date && t.due_date <= U.addDays(T, -days)).forEach(t => out.push({ id: t.id, cooldown: 14, ctx: { customer: S.customers.find(c => c.id === t.customer_id), descricao: t.description, valor: Number(t.amount), vencimento: t.due_date, dias: U.daysBetween(t.due_date, T) } }));
       if (type === 'aniversario') S.customers.filter(c => c.birthday).forEach(c => { for (let i = 0; i <= days; i++) { const d = U.addDays(T, i); if (d.slice(5) === c.birthday.slice(5)) { out.push({ id: `${c.id}:${d.slice(0, 4)}`, cooldown: 300, ctx: { customer: c, dias: i } }); break; } } });
+      if (type === 'pedido_novo') (S.orders || []).filter(o => o.status === 'novo').forEach(o => out.push({ id: o.id, cooldown: 365, ctx: { customer: S.customers.find(c => c.id === o.customer_id), valor: Number(o.total), titulo: o.code, descricao: 'Pedido #' + o.code } }));
       if (type === 'estoque_baixo') S.products.filter(p => !p.is_service && p.active !== false && Number(p.min_stock) > 0 && Number(p.stock) <= Number(p.min_stock)).forEach(p => out.push({ id: p.id, cooldown: 7, ctx: { product: p } }));
       if (type === 'proposta_parada') S.opportunities.filter(o => o.stage === 'proposta' && U.daysBetween((o.updated_at || o.created_at).slice(0, 10), T) >= days).forEach(o => out.push({ id: o.id, cooldown: 7, ctx: { customer: S.customers.find(c => c.id === o.customer_id), titulo: o.title, valor: Number(o.value), dias: U.daysBetween((o.updated_at || o.created_at).slice(0, 10), T) } }));
       return out;

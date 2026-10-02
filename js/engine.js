@@ -176,6 +176,9 @@ PE.engine = {
     const nextDate = this.mk.upcomingDates(21).find(d => !S.campaigns.some(c => c.status !== 'encerrada' && c.starts_at && c.ends_at && d.date >= c.starts_at && d.date <= U.addDays(c.ends_at, 3)));
     if (nextDate) push('info', 'date-' + nextDate.key, `${nextDate.name} em ${nextDate.days} dia${nextDate.days === 1 ? '' : 's'}: nenhuma campanha planejada`, nextDate.tip, 'marketing', 'Planejar campanha');
 
+    const newOrders = S.orders.filter(o => o.status === 'novo');
+    if (newOrders.length) push('urgent', 'new-orders', `${newOrders.length} ${newOrders.length > 1 ? 'pedidos novos' : 'pedido novo'} na loja online`, `Aguardando atendimento: ${newOrders.slice(0, 3).map(o => o.customer_name).join(', ')}. Responda rápido para não perder a venda.`, 'loja', 'Ver pedidos');
+
     const order = { urgent: 0, attention: 1, opportunity: 2, info: 3 };
     return out.filter(a => !dismissed.has(a.key)).sort((a, b) => order[a.level] - order[b.level]);
   },
@@ -334,7 +337,14 @@ PE.engine = {
         ? `💛 ${heads.avaliacoes}\n\nSe você já comprou na ${emp}, deixe sua avaliação${link ? ':\n' + link : ' nos comentários ou no nosso WhatsApp'}. Ela ajuda muito!\n\n${tags}`
         : `✨ ${occasion ? occasion + ': ' : ''}${heads[objective]} ✨\n\n${oferta}.${val}\n\n${channel === 'Loja física' ? 'Venha nos visitar' + (city ? ' em ' + city : '') + '! 📍' : 'Chame no WhatsApp e garanta o seu! 📲'}\n\n${tags}`;
       const objLabel = occasion || this.objectives[objective].label;
-      return { name: `${objLabel}${P ? ' — ' + P : ''}${starts ? ' (' + U.fmtShort(starts) + ')' : ''}`, message: msgs[objective], caption };
+      const heads2 = { promocao: P ? `${P} em oferta` : 'Ofertas imperdíveis', estoque: P ? `Últimas unidades: ${P}` : 'Últimas unidades', recuperacao: 'Saudade de você! Volte com uma condição especial', aniversario: 'Um presente de aniversário para você', lancamento: P ? `Novidade: ${P}` : 'Chegou novidade', avaliacoes: 'Conta pra gente como foi' };
+      const landing = {
+        headline: occasion ? `${occasion}: ${heads2[objective]}` : heads2[objective],
+        subheadline: P && pr ? `${P} por ${pr}${old ? ' (de ' + old + ')' : ''}.${val}` : `Aproveite as condições especiais.${val}`,
+        cta: objective === 'avaliacoes' ? 'Deixar minha avaliação' : 'Quero aproveitar',
+        bullets: ['Peça em poucos cliques, sem cadastro', 'Atendimento direto pelo WhatsApp', old ? `Economize ${U.brl(Number(product.price) - Number(price))}` : 'Condição válida por tempo limitado']
+      };
+      return { name: `${objLabel}${P ? ' — ' + P : ''}${starts ? ' (' + U.fmtShort(starts) + ')' : ''}`, message: msgs[objective], caption, landing };
     },
 
     /** Resultado medido: contatos enviados, clientes contatados que compraram e vendas do produto no período. */
@@ -538,3 +548,14 @@ PE.perm.reportSections = {
   administrador: ['financeiros', 'comerciais', 'estoque', 'marketing'], gerente: ['financeiros', 'comerciais', 'estoque', 'marketing'],
   financeiro: ['financeiros', 'comerciais', 'estoque'], vendedor: ['comerciais'], operacional: ['estoque']
 };
+
+/* Loja online: quem acessa, abas por perfil e permissões */
+['administrador', 'gerente', 'vendedor', 'operacional'].forEach(r => PE.perm.modules[r].push('loja'));
+PE.perm.moduleLabels.loja = 'Loja online';
+PE.perm.lojaTabs = {
+  administrador: ['pedidos', 'catalogo', 'links', 'config'], gerente: ['pedidos', 'catalogo', 'links', 'config'],
+  vendedor: ['pedidos'], operacional: ['catalogo'], financeiro: []
+};
+Object.assign(PE.perm.actions, {
+  'store.config': ['administrador'], 'store.catalog': ['administrador', 'gerente', 'operacional'], 'order.manage': ['administrador', 'gerente', 'vendedor']
+});
