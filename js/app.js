@@ -1150,7 +1150,7 @@
      INICIALIZAÇÃO
   ===================================================================== */
   async function start() {
-    root.innerHTML = '<div class="splash"><div class="spinner"></div></div>';
+    root.innerHTML = '<div class="boot"><div class="boot-logo">P</div><div class="boot-spin"></div></div>';
     try {
       await PE.db.loadAll();
       if (!S.company || !S.company.onboarded) { OB.step = 0; OB.data = { channels: [], name: S.company?.name }; return renderOnboarding(); }
@@ -1161,7 +1161,7 @@
     }
   }
   (async function boot() {
-    root.innerHTML = '<div class="splash"><div class="spinner"></div></div>';
+    root.innerHTML = '<div class="boot"><div class="boot-logo">P</div><div class="boot-spin"></div></div>';
     try { const user = await PE.db.init(); user ? await start() : renderAuth(); }
     catch (e) { console.error(e); renderAuth(); UI.toast('Falha ao iniciar: ' + e.message, 'err'); }
   })();

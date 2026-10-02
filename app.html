@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Prumo — Painel</title>
 <meta name="theme-color" content="#111113">
+<style>html,body{background:#111113}.boot{position:fixed;inset:0;background:#111113;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}.boot-logo{width:64px;height:64px;border-radius:20px;background:#f97316;color:#fff;display:grid;place-items:center;font:800 32px sans-serif}.boot-spin{width:26px;height:26px;border:3px solid #2a2b30;border-top-color:#f97316;border-radius:50%;animation:bs .7s linear infinite}@keyframes bs{to{transform:rotate(360deg)}}</style>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -18,7 +19,7 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="app"><div class="splash"><div class="spinner"></div></div></div>
+<div id="app"><div class="boot"><div class="boot-logo">P</div><div class="boot-spin"></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="js/config.js"></script>
