@@ -27,7 +27,7 @@ a { color: inherit; }
 .lj-cart-btn b { position: absolute; top: -6px; right: -6px; background: var(--accent); color: var(--accent-ink); font-size: 12px; min-width: 20px; height: 20px; border-radius: 99px; display: grid; place-items: center; padding: 0 5px; }
 
 /* Capa + identidade da marca */
-.lj-cover { height: 170px; background: linear-gradient(135deg, #0b0b0c 0%, #17110b 42%, var(--accent) 135%); position: relative; overflow: hidden; }
+.lj-cover { height: 170px; background: linear-gradient(100deg, #0b0b0c 0%, #1a110a 38%, var(--accent) 112%); position: relative; overflow: hidden; }
 .lj-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lj-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.28)); }
 .lj-id { max-width: 1120px; margin: -46px auto 0; padding: 0 16px; position: relative; z-index: 2; }
