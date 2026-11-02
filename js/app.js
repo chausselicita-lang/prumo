@@ -730,7 +730,7 @@
 
   /* ---------- LOJA ONLINE (catálogo + página da campanha + pedidos) ---------- */
   const ORDER_STATUS = { novo: ['Novo', 'red'], atendimento: ['Em atendimento', 'yellow'], confirmado: ['Confirmado', 'green'], cancelado: ['Cancelado', ''] };
-  const ACCENTS = ['#f97316', '#111113', '#16a34a', '#2563eb', '#db2777', '#7c3aed'];
+  const ACCENTS = ['#f97316', '#fb923c', '#111113', '#16a34a', '#2563eb', '#db2777', '#7c3aed'];
   const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
   const slugify = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
   const storeSettings = () => S.company.store_settings || {};
