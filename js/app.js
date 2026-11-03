@@ -440,7 +440,7 @@
   let prodQuery = '', prodFilter = 'todos';
   /** Aba "Produtos" da Loja online: cadastro, estoque, margem, foto e publicação numa lista só. */
   const prodBody = () => {
-    const target = Number(S.company.target_margin || 30), canStore = PE.perm.can('store.catalog');
+    const target = Number(S.company.target_margin || 30), canStore = PE.perm.can('store.catalog'), canDel = PE.perm.can('product.write');
     const rows = S.products.map(p => ({ p, st: E.productStats(S, p) }));
     const idle = rows.filter(x => x.st.idle), idleVal = idle.reduce((t, x) => t + x.st.stockValue, 0);
     const pub = rows.filter(x => x.p.published).length, noPhoto = rows.filter(x => !x.p.image_url).length;
@@ -455,7 +455,7 @@
       return `<div class="item clickable" data-act="prod-edit" data-id="${p.id}" style="align-items:flex-start"><div class="avatar" style="width:56px;height:56px;border-radius:14px;overflow:hidden;padding:0;flex:none">${thumb(p)}</div>
         <div class="grow"><div class="title">${esc(p.name)} ${p.is_service ? UI.chip('Serviço') : ''}</div><div class="sub">${p.sku ? esc(p.sku) + ' · ' : ''}Custo ${U.brl(p.cost)} · Preço ${U.brl(p.price)}${!p.is_service ? ` · Estoque ${Number(p.stock)}` : ''}</div>
           <div class="row wrap" style="margin-top:6px;gap:6px">${p.published ? UI.chip('Na loja', 'green') : ''}${p.featured ? UI.chip('★ Destaque', 'orange') : ''}${!p.image_url ? UI.chip('Sem foto', 'yellow') : ''}${st.idle ? UI.chip('Parado', 'yellow') : ''}${low ? UI.chip('Repor', 'red') : ''}</div>
-          ${canStore ? `<div class="row wrap" style="margin-top:8px;gap:6px">${uploadBtn(p.image_url ? 'Trocar foto' : '+ Foto', 'product', p.id)}<button class="btn sm ${p.published ? 'primary' : 'ghost'}" data-act="pub-toggle" data-id="${p.id}">${p.published ? '✓ Na loja' : 'Publicar na loja'}</button><button class="btn sm ${p.featured ? 'soft' : 'ghost'}" data-act="feat-toggle" data-id="${p.id}">${p.featured ? '★ Destaque' : '☆ Destacar'}</button></div>` : ''}</div>
+          ${canStore ? `<div class="row wrap" style="margin-top:8px;gap:6px">${uploadBtn(p.image_url ? 'Trocar foto' : '+ Foto', 'product', p.id)}<button class="btn sm ${p.published ? 'primary' : 'ghost'}" data-act="pub-toggle" data-id="${p.id}">${p.published ? '✓ Na loja' : 'Publicar na loja'}</button><button class="btn sm ${p.featured ? 'soft' : 'ghost'}" data-act="feat-toggle" data-id="${p.id}">${p.featured ? '★ Destaque' : '☆ Destacar'}</button>${canDel ? `<button class="btn sm danger" data-act="prod-del" data-id="${p.id}">Excluir</button>` : ''}</div>` : canDel ? `<div class="row wrap" style="margin-top:8px;gap:6px"><button class="btn sm danger" data-act="prod-del" data-id="${p.id}">Excluir</button></div>` : ''}</div>
         <div class="right">${marginChip(st.margin)}</div></div>`;
     };
     return `<div class="card row between wrap"><div><strong>${pub} de ${rows.length} produtos na loja online</strong><p class="small muted">${noPhoto ? `${noPhoto} sem foto. ` : ''}Só os publicados aparecem para o cliente; custo e margem nunca são mostrados. <strong>Dica:</strong> fotos quadradas, fundo claro e boa luz vendem mais (o app corta no quadrado e deixa leve).</p></div>
@@ -483,7 +483,7 @@
   };
   const prodEditBase = A['prod-edit'];
   A['prod-edit'] = d => { prodEditBase(d); const p = S.products.find(x => x.id === d.id); if (p && PE.perm.can('store.catalog')) document.querySelector('.modal-body')?.insertAdjacentHTML('afterbegin', photoBlockHTML(p)); };
-  A['prod-del'] = d => { UI.closeModal(); UI.confirm('Excluir este produto?', async () => { await PE.db.remove('products', d.id); refresh(); }); };
+  A['prod-del'] = d => { UI.closeModal(); UI.confirm('Excluir este produto?', async () => { try { await PE.db.remove('products', d.id); refresh(); UI.toast('Produto excluído.'); } catch (e) { UI.toast('Não foi possível excluir: ' + (e.message || e)); } }); };
   A['stock-adjust'] = d => {
     const p = S.products.find(x => x.id === d.id); UI.closeModal();
     UI.form({ title: `Estoque — ${p.name}`, fields: [{ name: 'kind', label: 'Movimento', type: 'select', options: [['entrada', 'Entrada (compra/reposição)'], ['saida', 'Saída (perda/consumo)'], ['ajuste', 'Ajuste (definir quantidade)']] }, { name: 'quantity', label: 'Quantidade', type: 'number', step: 'any', required: true, min: 0, hint: `Estoque atual: ${p.stock}` }, { name: 'reason', label: 'Motivo', full: true }], values: { kind: 'entrada' }, onSubmit: async v => { await PE.actions.adjustStock(p, v.kind, v.quantity, v.reason); UI.closeModal(); refresh(); UI.toast('Estoque atualizado.'); } });
