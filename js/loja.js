@@ -387,6 +387,7 @@
     try {
       S.data = await load();
       if (!S.data) { root.innerHTML = `<div class="lj-empty"><div><h2>Loja não encontrada</h2><p>Confira o link ou peça o endereço correto à loja.</p></div></div>`; return; }
+      const waOv = document.querySelector('meta[name="prumo-whatsapp"]')?.content; if (waOv && S.data.company) S.data.company.whatsapp = waOv;   /* página própria pode fixar o WhatsApp */
       setAccent(); setMeta(); render(); track(S.data.campaign ? 'landing' : 'catalog'); if (S.data.campaign) track('catalog');
     } catch (e) { root.innerHTML = `<div class="lj-empty"><div><h2>Ops!</h2><p>${esc(e.message || 'Não foi possível carregar a loja.')}</p></div></div>`; }
   })();
