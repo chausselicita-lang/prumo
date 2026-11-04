@@ -4,7 +4,7 @@
 (function () {
   const root = document.getElementById('shop');
   const qs = new URLSearchParams(location.search);
-  const slug = (qs.get('l') || '').toLowerCase(), campSlug = (qs.get('c') || '').toLowerCase(), demo = qs.get('demo') === '1';
+  const slug = (qs.get('l') || document.querySelector('meta[name="prumo-loja"]')?.content || '').toLowerCase(), campSlug = (qs.get('c') || '').toLowerCase(), demo = qs.get('demo') === '1';
   const LS_DEMO = 'prumo_demo_v1';
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
