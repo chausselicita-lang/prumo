@@ -30,6 +30,35 @@ a { color: inherit; }
 .lj-cover { height: 170px; background: linear-gradient(100deg, #0b0b0c 0%, #1a110a 38%, var(--accent) 112%); position: relative; overflow: hidden; }
 .lj-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lj-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.28)); }
+/* Banner rotativo (produtos da loja) */
+.lj-bn { position: relative; background: radial-gradient(120% 140% at 85% 60%, color-mix(in srgb, var(--accent) 85%, #000) 0%, #1a110a 55%, #0b0b0c 100%); color: #fff; overflow: hidden; }
+.lj-bn-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.lj-bn-track::-webkit-scrollbar { display: none; }
+.lj-bn-slide { flex: 0 0 100%; scroll-snap-align: start; display: flex; align-items: center; gap: 6px; min-height: 250px; padding: 22px 16px 62px; max-width: 1120px; margin: 0 auto; }
+.lj-bn-text { flex: 1 1 52%; min-width: 0; }
+.lj-bn-tag { display: inline-block; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); border-radius: 99px; padding: 3px 11px; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.lj-bn h2 { font-size: 24px; margin: 10px 0 6px; overflow-wrap: anywhere; }
+.lj-bn p { margin: 0 0 14px; color: #e8dccf; font-size: 14px; }
+.lj-bn-cta { display: inline-block; background: #fff; color: var(--ink); font-weight: 800; font-size: 14px; border-radius: 99px; padding: 10px 20px; text-decoration: none; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+.lj-bn-pics { flex: 0 0 46%; position: relative; height: 150px; }
+.lj-bn-pic { position: absolute; width: 96px; height: 96px; background: #fff; border-radius: 18px; box-shadow: 0 12px 26px rgba(0,0,0,.4); overflow: hidden; }
+.lj-bn-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lj-bn-pic.p0 { left: 0; top: 24px; transform: rotate(-6deg); z-index: 2; width: 104px; height: 104px; }
+.lj-bn-pic.p1 { right: 0; top: 0; transform: rotate(5deg); z-index: 1; }
+.lj-bn-pic.p2 { right: 18px; bottom: 0; transform: rotate(-2deg); z-index: 3; width: 88px; height: 88px; }
+.lj-bn-pic b { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); color: var(--accent-ink); font-size: 12px; text-align: center; padding: 2px 0; }
+.lj-bn-dots { position: absolute; left: 0; right: 0; bottom: 56px; display: flex; justify-content: center; gap: 7px; }
+.lj-bn-dots button { width: 8px; height: 8px; border-radius: 99px; border: 0; padding: 0; background: rgba(255,255,255,.45); cursor: pointer; transition: width .25s, background .25s; }
+.lj-bn-dots button.on { width: 24px; background: #fff; }
+.lj-bn-arrow { display: none; position: absolute; top: calc(50% - 30px); width: 42px; height: 42px; border-radius: 50%; border: 0; background: rgba(255,255,255,.95); color: var(--ink); font-size: 26px; line-height: 1; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+.lj-bn-arrow.prev { left: 14px; } .lj-bn-arrow.next { right: 14px; }
+@media (min-width: 700px) {
+  .lj-bn-slide { min-height: 340px; padding: 36px 70px 80px; gap: 30px; }
+  .lj-bn h2 { font-size: 42px; } .lj-bn p { font-size: 18px; margin-bottom: 20px; } .lj-bn-cta { font-size: 17px; padding: 13px 30px; } .lj-bn-tag { font-size: 14px; }
+  .lj-bn-pics { flex-basis: 50%; height: 240px; }
+  .lj-bn-pic { width: 150px; height: 150px; border-radius: 24px; } .lj-bn-pic.p0 { width: 170px; height: 170px; top: 40px; } .lj-bn-pic.p2 { width: 140px; height: 140px; right: 40px; }
+  .lj-bn-dots { bottom: 70px; } .lj-bn-arrow { display: block; }
+}
 .lj-id { max-width: 1120px; margin: -46px auto 0; padding: 0 16px; position: relative; z-index: 2; }
 .lj-id-card { background: #fff; border-radius: 26px; box-shadow: var(--shadow); padding: 0 18px 18px; border: 1px solid var(--line); }
 .lj-logo { width: 88px; height: 88px; border-radius: 26px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--font-head); font-weight: 800; font-size: 38px; overflow: hidden; border: 4px solid #fff; box-shadow: 0 6px 18px rgba(0,0,0,.14); margin-top: -44px; }

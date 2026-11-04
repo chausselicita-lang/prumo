@@ -86,11 +86,56 @@
     const c = S.data.company, logo = safeUrl(c.logo), cover = safeUrl(c.cover), pays = (c.payments || []).filter(Boolean), wa = waNumber(c.whatsapp);
     const facts = [c.city ? `📍 ${esc(c.city)}` : '', c.hours ? `🕒 ${esc(c.hours)}` : '', c.delivery ? '🚚 Entrega e retirada' : '', pays.length ? `💳 ${pays.slice(0, 3).map(esc).join(' · ')}${pays.length > 3 ? '…' : ''}` : ''].filter(Boolean);
     const ig = (c.instagram || '').replace(/^@/, '');
-    return `<div class="lj-cover">${cover ? `<img src="${esc(cover)}" alt="">` : ''}</div>
+    return `${banner(cover)}
       <div class="lj-id"><div class="lj-id-card"><div class="lj-logo">${logo ? `<img src="${esc(logo)}" alt="Logotipo de ${esc(c.name)}">` : esc((c.name || 'L')[0].toUpperCase())}</div>
         <h1>${esc(c.name)}</h1>${c.headline ? `<p class="lj-tag">${esc(c.headline)}</p>` : ''}
         ${facts.length ? `<div class="lj-facts">${facts.map(f => `<span class="lj-fact">${f}</span>`).join('')}</div>` : ''}
         <div class="lj-actions">${wa ? `<a class="lj-btn wa" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent('Olá! Vim pela loja online e gostaria de ajuda.')}">Falar no WhatsApp</a>` : ''}${ig ? `<a class="lj-btn" target="_blank" rel="noopener" href="https://instagram.com/${esc(ig)}">Instagram</a>` : ''}<a class="lj-btn dark" href="#produtos" data-a="scroll">Ver produtos</a></div></div></div>`;
+  }
+  /* Banner rotativo do topo: monta os slides com produtos reais da loja (destaques e categorias). */
+  const nice = s => { const t = String(s || '').toLocaleLowerCase('pt-BR'); return t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1); };
+  function bannerSlides() {
+    const withImg = S.data.products.filter(p => imgsOf(p).length);
+    const pick = list => [...list].sort((a, b) => (b.featured - a.featured) || (b.available - a.available) || a.name.localeCompare(b.name)).slice(0, 3);
+    const slides = [];
+    const byCat = {}; withImg.forEach(p => { if (p.category) (byCat[p.category] = byCat[p.category] || []).push(p); });
+    const feat = withImg.filter(p => p.featured);
+    const mix = Object.values(byCat).map(l => pick(l)[0]).slice(0, 3);   /* um produto de cada categoria */
+    const first = feat.length >= 3 ? pick(feat) : mix.length >= 3 ? mix : pick(withImg);
+    if (withImg.length >= 3) slides.push({ tag: 'Ofertas da semana', title: 'Aproveite os melhores preços', sub: `Selecionados pela ${S.data.company.name}`, cta: 'Confira as ofertas', act: 'scroll', items: first });
+    const used = new Set(first.map(p => p.id));
+    Object.keys(byCat).forEach(k => { const rest = byCat[k].filter(p => !used.has(p.id)); byCat[k]._pool = rest.length >= 3 ? rest : byCat[k]; });
+    Object.entries(byCat).filter(([, l]) => l.length >= 3).sort((a, b) => b[1].length - a[1].length).slice(0, 3).forEach(([cat, l]) => {
+      const min = Math.min(...l.map(p => priceOf(p)));
+      slides.push({ tag: `${l.length} produtos`, title: nice(cat), sub: showPrices() ? `A partir de ${brl(min)}` : 'Veja as opções', cta: 'Ver produtos', act: 'cat', cat, items: pick(l._pool) });
+    });
+    return slides;
+  }
+  function banner(cover) {
+    const slides = bannerSlides();
+    if (!slides.length) return `<div class="lj-cover">${cover ? `<img src="${esc(cover)}" alt="">` : ''}</div>`;
+    const many = slides.length > 1;
+    return `<section class="lj-bn" aria-roledescription="carrossel" aria-label="Destaques da loja"><div class="lj-bn-track">${slides.map((s, i) => `
+      <div class="lj-bn-slide" aria-label="${i + 1} de ${slides.length}"><div class="lj-bn-text"><span class="lj-bn-tag">${esc(s.tag)}</span><h2>${esc(s.title)}</h2><p>${esc(s.sub)}</p>
+        <a class="lj-bn-cta" href="#produtos" data-a="${s.act === 'cat' ? 'cat' : 'scroll'}" ${s.act === 'cat' ? `data-v="${esc(s.cat)}"` : ''}>${esc(s.cta)}</a></div>
+        <div class="lj-bn-pics">${s.items.map((p, k) => `<div class="lj-bn-pic p${k}"><img src="${esc(imgsOf(p)[0])}" alt="${esc(p.name)}" ${i ? 'loading="lazy"' : ''}>${k === 0 && showPrices() ? `<b>${brl(priceOf(p))}</b>` : ''}</div>`).join('')}</div></div>`).join('')}</div>
+      ${many ? `<button class="lj-bn-arrow prev" data-a="bn" data-d="-1" aria-label="Anterior">‹</button><button class="lj-bn-arrow next" data-a="bn" data-d="1" aria-label="Próximo">›</button>
+      <div class="lj-bn-dots">${slides.map((_, i) => `<button data-a="bn" data-i="${i}" aria-label="Ir para ${i + 1}"></button>`).join('')}</div>` : ''}</section>`;
+  }
+  let bnTimer = null, bnPause = 0;
+  function bnGo(i, smooth) {
+    const tr = root.querySelector('.lj-bn-track'); if (!tr) return;
+    const n = tr.children.length; S.bn = (i + n) % n;
+    tr.scrollTo({ left: S.bn * tr.clientWidth, behavior: smooth ? 'smooth' : 'instant' }); bnDots();
+  }
+  function bnDots() { root.querySelectorAll('.lj-bn-dots button').forEach((b, i) => b.classList.toggle('on', i === (S.bn || 0))); }
+  function initBanner() {
+    clearInterval(bnTimer); const tr = root.querySelector('.lj-bn-track'); if (!tr) return;
+    bnGo(S.bn || 0, false);
+    if (tr.children.length < 2) return;
+    tr.addEventListener('scroll', () => { const i = Math.round(tr.scrollLeft / tr.clientWidth); if (i !== S.bn) { S.bn = i; bnDots(); } }, { passive: true });
+    ['pointerdown', 'touchstart', 'mouseenter'].forEach(ev => tr.parentElement.addEventListener(ev, () => { bnPause = Date.now() + 9000; }, { passive: true }));
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) bnTimer = setInterval(() => { if (Date.now() > bnPause && !document.hidden) bnGo((S.bn || 0) + 1, true); }, 4500);
   }
   function hero() {
     const c = S.data.campaign; if (!c) return '';
@@ -157,7 +202,7 @@
       ${n ? `<button class="lj-bar" data-a="cart"><span>Ver pedido (${n})</span><span>${showPrices() ? brl(cartTotal()) : 'Enviar'}</span></button>` : ''}`;
     if (active !== null) { const i = root.querySelector('[data-in=q]'); i.focus(); i.setSelectionRange(active, active); }
     if (keepFocus) window.scrollTo(0, y);
-    markLoaded();
+    markLoaded(); initBanner();
   }
   function markLoaded() { root.querySelectorAll('.lj-photo img').forEach(i => { const ok = () => i.closest('.lj-photo')?.classList.add('ok'); if (i.complete && i.naturalWidth) ok(); else { i.addEventListener('load', ok, { once: true }); i.addEventListener('error', ok, { once: true }); } }); }
 
@@ -265,6 +310,7 @@
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-a]'); if (!el || !S.data) return; const a = el.dataset.a, id = el.dataset.id;
     if (a === 'scroll') { e.preventDefault(); document.getElementById('produtos')?.scrollIntoView({ behavior: 'smooth' }); }
+    if (a === 'bn') { bnPause = Date.now() + 9000; bnGo(el.dataset.i !== undefined ? Number(el.dataset.i) : (S.bn || 0) + Number(el.dataset.d), true); }
     if (a === 'close') closeSheet();
     if (a === 'cart') openCart();
     if (a === 'detail') openDetail(id);
