@@ -15,7 +15,7 @@
   const maskPhone = v => { const d = digits(v).slice(0, 11); if (d.length <= 2) return d; if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`; if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`; return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`; };
   const waNumber = w => { const n = digits(w); return n ? (n.length <= 11 ? '55' + n : n) : ''; };
 
-  const S = { data: null, cart: {}, q: '', cat: '', sort: 'rel', sb: null, done: null, sending: false, backing: 0, gal: { id: null, i: 0 } };
+  const S = { data: null, cart: {}, q: '', cat: '', sort: 'rel', sb: null, done: null, sending: false, backing: 0, cut: {}, cutTried: {}, gal: { id: null, i: 0 } };
   const cartKey = 'prumo_cart_' + (demo ? 'demo' : slug);
   try { S.cart = JSON.parse(localStorage.getItem(cartKey) || '{}'); } catch { S.cart = {}; }
   const saveCart = () => { try { localStorage.setItem(cartKey, JSON.stringify(S.cart)); } catch { /* sem armazenamento */ } };
@@ -116,9 +116,10 @@
     if (!slides.length) return `<div class="lj-cover">${cover ? `<img src="${esc(cover)}" alt="">` : ''}</div>`;
     const many = slides.length > 1;
     return `<section class="lj-bn" aria-roledescription="carrossel" aria-label="Destaques da loja"><div class="lj-bn-track">${slides.map((s, i) => `
-      <div class="lj-bn-slide" aria-label="${i + 1} de ${slides.length}"><div class="lj-bn-text"><span class="lj-bn-tag">${esc(s.tag)}</span><h2>${esc(s.title)}</h2><p>${esc(s.sub)}</p>
+      <div class="lj-bn-slide t${i % 5}" aria-label="${i + 1} de ${slides.length}"><div class="lj-bn-text"><span class="lj-bn-tag">${esc(s.tag)}</span><h2>${esc(s.title)}</h2><p>${esc(s.sub)}</p>
         <a class="lj-bn-cta" href="#produtos" data-a="${s.act === 'cat' ? 'cat' : 'scroll'}" ${s.act === 'cat' ? `data-v="${esc(s.cat)}"` : ''}>${esc(s.cta)}</a></div>
-        <div class="lj-bn-pics">${s.items.map((p, k) => `<div class="lj-bn-pic p${k}"><img src="${esc(imgsOf(p)[0])}" alt="${esc(p.name)}" ${i ? 'loading="lazy"' : ''}>${k === 0 && showPrices() ? `<b>${brl(priceOf(p))}</b>` : ''}</div>`).join('')}</div></div>`).join('')}</div>
+        <div class="lj-bn-pics"><div class="lj-bn-row">${s.items.map((p, k) => { const u = imgsOf(p)[0], c = S.cut[u]; return `<div class="lj-bn-pic p${k}"><img class="${c ? 'cut' : ''}" src="${esc(c || u)}" data-u="${esc(u)}" alt="${esc(p.name)}" crossorigin="anonymous"></div>`; }).join('')}</div>
+          ${showPrices() ? `<span class="lj-bn-price">${s.items.length > 1 ? 'a partir de ' : ''}${brl(Math.min(...s.items.map(p => priceOf(p))))}</span>` : ''}</div></div>`).join('')}</div>
       ${many ? `<button class="lj-bn-arrow prev" data-a="bn" data-d="-1" aria-label="Anterior">‹</button><button class="lj-bn-arrow next" data-a="bn" data-d="1" aria-label="Próximo">›</button>
       <div class="lj-bn-dots">${slides.map((_, i) => `<button data-a="bn" data-i="${i}" aria-label="Ir para ${i + 1}"></button>`).join('')}</div>` : ''}</section>`;
   }
@@ -129,7 +130,29 @@
     tr.scrollTo({ left: S.bn * tr.clientWidth, behavior: smooth ? 'smooth' : 'instant' }); bnDots();
   }
   function bnDots() { root.querySelectorAll('.lj-bn-dots button').forEach((b, i) => b.classList.toggle('on', i === (S.bn || 0))); }
+  /* Tira o fundo branco da foto: apaga o branco ligado às bordas e devolve um PNG com transparência. */
+  function cutout(img) {
+    const u = img.dataset.u; if (!u || S.cut[u] || S.cutTried[u]) return; S.cutTried[u] = 1;
+    const go = () => {
+      try {
+        const W = 360, c = document.createElement('canvas'); c.width = c.height = W;
+        const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, W, W);
+        const d = x.getImageData(0, 0, W, W), px = d.data, seen = new Uint8Array(W * W), st = [];
+        const bg = i => { const r = px[i * 4], g = px[i * 4 + 1], b = px[i * 4 + 2]; return Math.min(r, g, b) >= 232 && Math.max(r, g, b) - Math.min(r, g, b) <= 22; };
+        const push = i => { if (!seen[i] && bg(i)) { seen[i] = 1; st.push(i); } };
+        for (let k = 0; k < W; k++) { push(k); push((W - 1) * W + k); push(k * W); push(k * W + W - 1); }
+        while (st.length) { const i = st.pop(), cx = i % W; if (cx > 0) push(i - 1); if (cx < W - 1) push(i + 1); if (i >= W) push(i - W); if (i < W * (W - 1)) push(i + W); }
+        for (let i = 0; i < W * W; i++) if (seen[i]) px[i * 4 + 3] = 0;
+        for (let i = 0; i < W * W; i++) { if (seen[i]) continue; const cx = i % W; if ((cx > 0 && seen[i - 1]) || (cx < W - 1 && seen[i + 1]) || (i >= W && seen[i - W]) || (i < W * (W - 1) && seen[i + W])) px[i * 4 + 3] = 150; } /* borda suave */
+        x.putImageData(d, 0, 0);
+        const url = c.toDataURL('image/png'); S.cut[u] = url;
+        root.querySelectorAll('.lj-bn-pic img').forEach(el => { if (el.dataset.u === u) { el.src = url; el.classList.add('cut'); } });
+      } catch { /* sem CORS: fica a foto original misturada com o fundo */ }
+    };
+    if (img.complete && img.naturalWidth) go(); else img.addEventListener('load', go, { once: true });
+  }
   function initBanner() {
+    root.querySelectorAll('.lj-bn-pic img:not(.cut)').forEach(cutout);
     clearInterval(bnTimer); const tr = root.querySelector('.lj-bn-track'); if (!tr) return;
     bnGo(S.bn || 0, false);
     if (tr.children.length < 2) return;
