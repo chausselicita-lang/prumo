@@ -111,8 +111,16 @@
     });
     const fer = Object.keys(byCat).find(k => /ferrament/i.test(k));
     if (slides.length) slides.splice(1, 0, { worker: true, theme: 5, tag: 'Bem-vindo!', title: 'Obra boa começa aqui', sub: 'Ferramentas e materiais para o seu trabalho. Vem comprar!', cta: fer ? 'Ver ferramentas' : 'Ver produtos', act: fer ? 'cat' : 'scroll', cat: fer });
+    if (slides.length > 1) slides.splice(2, 0, { split: true, tag: 'Construa com a gente', title: 'Tudo para construir a <em>casa dos seus sonhos</em>', html: 1, sub: 'Ferramentas, materiais e muito mais, com atendimento de verdade pelo WhatsApp.', cta: 'Ver produtos', act: 'scroll' });
     return slides;
   }
+  /* Equipe de obra (busto) para o banner dividido */
+  const bust = (skin, helmet, shirt, tone) => `<svg viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg"><path d="M8 150c0-34 20-52 52-52s52 18 52 52z" fill="${shirt}"/><path d="M38 150v-30l22 10 22-10v30z" fill="${tone}"/><rect x="52" y="86" width="16" height="18" rx="6" fill="${skin}"/>
+    <circle cx="60" cy="62" r="30" fill="${skin}"/><circle cx="31" cy="66" r="6" fill="${skin}"/><circle cx="89" cy="66" r="6" fill="${skin}"/>
+    <path d="M30 54a30 30 0 0 1 60 0z" fill="${helmet}"/><rect x="26" y="52" width="68" height="9" rx="4.5" fill="${helmet}" stroke="rgba(0,0,0,.15)"/><rect x="54" y="22" width="12" height="12" rx="3" fill="${helmet}"/>
+    <ellipse cx="49" cy="70" rx="3.4" ry="4.4" fill="#2b1b12"/><ellipse cx="71" cy="70" rx="3.4" ry="4.4" fill="#2b1b12"/><path d="M45 63q5-4 10-1M65 62q5-3 10 1" stroke="#4a2e1a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <path d="M47 80q13 12 26 0z" fill="#7f1d1d"/><path d="M49 80q11 5 22 0v2q-11 6-22 0z" fill="#fff"/><path d="M46 78q7-5 14-1q7-4 14 1q-6 5-14 3q-8 2-14-3z" fill="#4a2e1a"/></svg>`;
+  const CREW = bust('#e8a877', '#fbbf24', '#fff7ed', '#2563eb') + bust('#f1b98a', '#ffffff', '#fde68a', '#1e3a8a') + bust('#8d5a3b', '#f97316', '#fff7ed', '#374151');
   /* Pedreiro simpático (ilustração própria em SVG): capacete, bigode, martelo e colher de pedreiro */
   const WORKER_SVG = `<svg class="lj-worker" viewBox="0 0 260 300" role="img" aria-label="Pedreiro sorrindo com martelo e colher de pedreiro" xmlns="http://www.w3.org/2000/svg">
     <ellipse cx="130" cy="292" rx="88" ry="8" fill="rgba(0,0,0,.28)"/>
@@ -143,9 +151,9 @@
     if (!slides.length) return `<div class="lj-cover">${cover ? `<img src="${esc(cover)}" alt="">` : ''}</div>`;
     const many = slides.length > 1;
     return `<section class="lj-bn" aria-roledescription="carrossel" aria-label="Destaques da loja"><div class="lj-bn-track">${slides.map((s, i) => `
-      <div class="lj-bn-slide t${s.theme ?? i % 5}" aria-label="${i + 1} de ${slides.length}"><div class="lj-bn-text"><span class="lj-bn-tag">${esc(s.tag)}</span><h2>${esc(s.title)}</h2><p>${esc(s.sub)}</p>
+      <div class="lj-bn-slide t${s.theme ?? i % 5} ${s.split ? 'split' : ''}" aria-label="${i + 1} de ${slides.length}">${s.split ? `<div class="lj-bn-stripe"></div><div class="lj-bn-crew"><span class="lj-bn-seal">Preço<br>de verdade</span><div>${CREW}</div></div>` : ''}<div class="lj-bn-text"><span class="lj-bn-tag">${esc(s.tag)}</span><h2>${s.html ? s.title : esc(s.title)}</h2><p>${esc(s.sub)}</p>
         <a class="lj-bn-cta" href="#produtos" data-a="${s.act === 'cat' ? 'cat' : 'scroll'}" ${s.act === 'cat' ? `data-v="${esc(s.cat)}"` : ''}>${esc(s.cta)}</a></div>
-        ${s.worker ? `<div class="lj-bn-pics worker">${WORKER_SVG}</div></div>` : `<div class="lj-bn-pics"><div class="lj-bn-row">${s.items.map((p, k) => { const u = imgsOf(p)[0], c = S.cut[u]; return `<div class="lj-bn-pic p${k}"><img class="${c ? 'cut' : ''}" src="${esc(c || u)}" data-u="${esc(u)}" alt="${esc(p.name)}" crossorigin="anonymous"></div>`; }).join('')}</div>
+        ${s.split ? '</div>' : s.worker ? `<div class="lj-bn-pics worker">${WORKER_SVG}</div></div>` : `<div class="lj-bn-pics"><div class="lj-bn-row">${s.items.map((p, k) => { const u = imgsOf(p)[0], c = S.cut[u]; return `<div class="lj-bn-pic p${k}"><img class="${c ? 'cut' : ''}" src="${esc(c || u)}" data-u="${esc(u)}" alt="${esc(p.name)}" crossorigin="anonymous"></div>`; }).join('')}</div>
           ${showPrices() ? `<span class="lj-bn-price">${s.items.length > 1 ? 'a partir de ' : ''}${brl(Math.min(...s.items.map(p => priceOf(p))))}</span>` : ''}</div></div>`}`).join('')}</div>
       ${many ? `<button class="lj-bn-arrow prev" data-a="bn" data-d="-1" aria-label="Anterior">‹</button><button class="lj-bn-arrow next" data-a="bn" data-d="1" aria-label="Próximo">›</button>
       <div class="lj-bn-dots">${slides.map((_, i) => `<button data-a="bn" data-i="${i}" aria-label="Ir para ${i + 1}"></button>`).join('')}</div>` : ''}</section>`;
