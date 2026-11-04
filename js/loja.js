@@ -109,17 +109,44 @@
       const min = Math.min(...l.map(p => priceOf(p)));
       slides.push({ tag: `${l.length} produtos`, title: nice(cat), sub: showPrices() ? `A partir de ${brl(min)}` : 'Veja as opções', cta: 'Ver produtos', act: 'cat', cat, items: pick(l._pool) });
     });
+    const fer = Object.keys(byCat).find(k => /ferrament/i.test(k));
+    if (slides.length) slides.splice(1, 0, { worker: true, theme: 5, tag: 'Bem-vindo!', title: 'Obra boa começa aqui', sub: 'Ferramentas e materiais para o seu trabalho. Vem comprar!', cta: fer ? 'Ver ferramentas' : 'Ver produtos', act: fer ? 'cat' : 'scroll', cat: fer });
     return slides;
   }
+  /* Pedreiro simpático (ilustração própria em SVG): capacete, bigode, martelo e colher de pedreiro */
+  const WORKER_SVG = `<svg class="lj-worker" viewBox="0 0 260 300" role="img" aria-label="Pedreiro sorrindo com martelo e colher de pedreiro" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="130" cy="292" rx="88" ry="8" fill="rgba(0,0,0,.28)"/>
+    <rect x="94" y="236" width="30" height="48" rx="8" fill="#1e3a8a"/><rect x="136" y="236" width="30" height="48" rx="8" fill="#1e3a8a"/>
+    <path d="M86 284h40v8a6 6 0 0 1-6 6H92a6 6 0 0 1-6-6z" fill="#3b2a20"/><path d="M134 284h40v8a6 6 0 0 1-6 6h-28a6 6 0 0 1-6-6z" fill="#3b2a20"/>
+    <rect x="78" y="140" width="104" height="110" rx="26" fill="#fff7ed"/>
+    <path d="M92 168h76v70a12 12 0 0 1-12 12h-52a12 12 0 0 1-12-12z" fill="#2563eb"/>
+    <rect x="102" y="140" width="12" height="36" fill="#2563eb"/><rect x="146" y="140" width="12" height="36" fill="#2563eb"/>
+    <rect x="114" y="196" width="32" height="24" rx="5" fill="#1d4ed8"/><circle cx="108" cy="172" r="4" fill="#fbbf24"/><circle cx="152" cy="172" r="4" fill="#fbbf24"/>
+    <path d="M84 160 L52 118" stroke="#fff7ed" stroke-width="26" stroke-linecap="round"/><circle cx="50" cy="112" r="14" fill="#f1b98a"/>
+    <rect x="43" y="40" width="9" height="76" rx="4" fill="#92400e" transform="rotate(8 47 78)"/>
+    <rect x="22" y="26" width="50" height="22" rx="5" fill="#9ca3af" transform="rotate(8 47 37)"/><rect x="22" y="26" width="22" height="22" rx="5" fill="#6b7280" transform="rotate(8 47 37)"/>
+    <path d="M176 160 L214 188" stroke="#fff7ed" stroke-width="26" stroke-linecap="round"/><circle cx="218" cy="192" r="14" fill="#f1b98a"/>
+    <rect x="214" y="186" width="8" height="30" rx="4" fill="#92400e" transform="rotate(35 218 200)"/>
+    <path d="M231 207 l22 20 -34 6z" fill="#d1d5db" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="122" y="128" width="16" height="20" rx="6" fill="#e8a877"/>
+    <circle cx="130" cy="96" r="42" fill="#f1b98a"/><circle cx="88" cy="100" r="9" fill="#e8a877"/><circle cx="172" cy="100" r="9" fill="#e8a877"/>
+    <path d="M88 82a42 42 0 0 1 84 0z" fill="#fff"/><path d="M84 84h92a6 6 0 0 1 0 12H84a6 6 0 0 1 0-12z" fill="#fde68a"/><rect x="122" y="38" width="16" height="16" rx="4" fill="#f59e0b"/>
+    <ellipse cx="114" cy="106" rx="4.5" ry="6" fill="#2b1b12"/><ellipse cx="146" cy="106" rx="4.5" ry="6" fill="#2b1b12"/><circle cx="115.5" cy="103.5" r="1.6" fill="#fff"/><circle cx="147.5" cy="103.5" r="1.6" fill="#fff"/>
+    <path d="M106 96q8-6 16-1M138 95q8-5 16 1" stroke="#5b3a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="104" cy="118" r="6" fill="#f4a08a" opacity=".6"/><circle cx="156" cy="118" r="6" fill="#f4a08a" opacity=".6"/>
+    <path d="M110 124q20 16 40 0" fill="#7f1d1d"/><path d="M114 125q16 7 32 0v3q-16 10-32 0z" fill="#fff"/>
+    <path d="M108 118q10-6 22 0q12-6 22 0q-8 8-22 5q-14 3-22-5z" fill="#5b3a24"/>
+    <path d="M232 70l4 10 10 4-10 4-4 10-4-10-10-4 10-4zM30 190l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#fff" opacity=".85"/>
+  </svg>`;
   function banner(cover) {
     const slides = bannerSlides();
     if (!slides.length) return `<div class="lj-cover">${cover ? `<img src="${esc(cover)}" alt="">` : ''}</div>`;
     const many = slides.length > 1;
     return `<section class="lj-bn" aria-roledescription="carrossel" aria-label="Destaques da loja"><div class="lj-bn-track">${slides.map((s, i) => `
-      <div class="lj-bn-slide t${i % 5}" aria-label="${i + 1} de ${slides.length}"><div class="lj-bn-text"><span class="lj-bn-tag">${esc(s.tag)}</span><h2>${esc(s.title)}</h2><p>${esc(s.sub)}</p>
+      <div class="lj-bn-slide t${s.theme ?? i % 5}" aria-label="${i + 1} de ${slides.length}"><div class="lj-bn-text"><span class="lj-bn-tag">${esc(s.tag)}</span><h2>${esc(s.title)}</h2><p>${esc(s.sub)}</p>
         <a class="lj-bn-cta" href="#produtos" data-a="${s.act === 'cat' ? 'cat' : 'scroll'}" ${s.act === 'cat' ? `data-v="${esc(s.cat)}"` : ''}>${esc(s.cta)}</a></div>
-        <div class="lj-bn-pics"><div class="lj-bn-row">${s.items.map((p, k) => { const u = imgsOf(p)[0], c = S.cut[u]; return `<div class="lj-bn-pic p${k}"><img class="${c ? 'cut' : ''}" src="${esc(c || u)}" data-u="${esc(u)}" alt="${esc(p.name)}" crossorigin="anonymous"></div>`; }).join('')}</div>
-          ${showPrices() ? `<span class="lj-bn-price">${s.items.length > 1 ? 'a partir de ' : ''}${brl(Math.min(...s.items.map(p => priceOf(p))))}</span>` : ''}</div></div>`).join('')}</div>
+        ${s.worker ? `<div class="lj-bn-pics worker">${WORKER_SVG}</div></div>` : `<div class="lj-bn-pics"><div class="lj-bn-row">${s.items.map((p, k) => { const u = imgsOf(p)[0], c = S.cut[u]; return `<div class="lj-bn-pic p${k}"><img class="${c ? 'cut' : ''}" src="${esc(c || u)}" data-u="${esc(u)}" alt="${esc(p.name)}" crossorigin="anonymous"></div>`; }).join('')}</div>
+          ${showPrices() ? `<span class="lj-bn-price">${s.items.length > 1 ? 'a partir de ' : ''}${brl(Math.min(...s.items.map(p => priceOf(p))))}</span>` : ''}</div></div>`}`).join('')}</div>
       ${many ? `<button class="lj-bn-arrow prev" data-a="bn" data-d="-1" aria-label="Anterior">‹</button><button class="lj-bn-arrow next" data-a="bn" data-d="1" aria-label="Próximo">›</button>
       <div class="lj-bn-dots">${slides.map((_, i) => `<button data-a="bn" data-i="${i}" aria-label="Ir para ${i + 1}"></button>`).join('')}</div>` : ''}</section>`;
   }

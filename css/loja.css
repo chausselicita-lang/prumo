@@ -40,6 +40,10 @@ a { color: inherit; }
 .lj-bn-slide.t2 { --c1: #16a34a; --c2: #14532d; }
 .lj-bn-slide.t3 { --c1: #7c3aed; --c2: #4c1d95; }
 .lj-bn-slide.t4 { --c1: #e11d48; --c2: #881337; }
+.lj-bn-slide.t5 { --c1: #d97706; --c2: #78350f; }
+.lj-bn-pics.worker { justify-content: flex-end; align-self: flex-end; margin-bottom: -50px; }
+.lj-worker { height: 215px; width: auto; max-width: 100%; display: block; filter: drop-shadow(0 8px 10px rgba(0,0,0,.25)); }
+@media (min-width: 700px) { .lj-worker { height: 300px; } .lj-bn-pics.worker { margin-bottom: -70px; } }
 .lj-bn-text { flex: 1 1 48%; min-width: 0; }
 .lj-bn-tag { display: inline-block; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); border-radius: 99px; padding: 3px 11px; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
 .lj-bn h2 { font-size: 22px; margin: 10px 0 6px; overflow-wrap: anywhere; }
